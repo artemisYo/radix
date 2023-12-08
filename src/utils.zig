@@ -76,4 +76,3 @@ pub fn AutoKeyMap(comptime Key: type, comptime Value: type) type {
         }
     };
 }
-
