@@ -7,7 +7,7 @@ test "make code alive" {
     var allocator = Alloc.allocator();
     const KeyType = utils.MakeKey(0);
     const ValueType = struct {};
-    const KVMap = utils.AutoKeyMap(KeyType, ValueType);
+    const KVMap = utils.AutoKeyVec(KeyType, ValueType);
     var kvmap = try KVMap.init(allocator);
     const idx = try kvmap.push(allocator, .{});
     _ = kvmap.index(idx);
