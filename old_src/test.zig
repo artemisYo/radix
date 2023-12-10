@@ -12,3 +12,7 @@ test "make code alive" {
     const idx = try kvmap.push(allocator, .{});
     _ = kvmap.index(idx);
 }
+
+test "check all" {
+    std.testing.refAllDeclsRecursive(impl);
+}

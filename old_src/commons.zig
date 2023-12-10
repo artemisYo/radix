@@ -11,7 +11,6 @@ pub const ArgIdx = utils.MakeRange(1, u24, u8);
 pub const Block = struct {
     sig: SigIdx,
     // the first instruction of the block,
-    // size: 4B * 2
     start: InstIdx,
     // the terminator instruction, end of the block
     terminator: InstIdx,

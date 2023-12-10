@@ -1,5 +1,19 @@
 const std = @import("std");
 
+// like toOwnedSlice in the ArrayList
+// but does not free the memory in the
+// ArrayList, so as to allow further use
+pub fn to_slice_no_free(
+    comptime T: type,
+    array: *std.ArrayListUnmanaged(T),
+    alloc: std.mem.Allocator,
+) std.mem.Allocator.Error![]T {
+    var out = try alloc.alloc(T, array.items.len);
+    @memcpy(out, array.items);
+    array.clearRetainingCapacity();
+    return out;
+}
+
 pub fn MakeKey(comptime garbage: usize) type {
     return struct {
         // this is needed in order to circumvent memoization of zig's comptime funcs
@@ -81,7 +95,7 @@ pub fn AutoRangeVec(comptime Range: type, comptime Value: type) type {
             self: *Self,
             allocator: std.mem.Allocator
         ) std.mem.Allocator.Error!AutoKeySlice(Range, Value) {
-            return .{ .entries = try self.entries.toOwnedSlice(allocator) };
+            return .{ .entries = try to_slice_no_free(Value, self.entries, allocator) };
         }
     };
 }
@@ -138,7 +152,7 @@ pub fn AutoKeyVec(comptime Key: type, comptime Value: type) type {
             self: *Self,
             allocator: std.mem.Allocator
         ) std.mem.Allocator.Error!AutoKeySlice(Key, Value) {
-            return .{ .entries = try self.entries.toOwnedSlice(allocator) };
+            return .{ .entries = try to_slice_no_free(Value, self.entries, allocator) };
         }
     };
 }
