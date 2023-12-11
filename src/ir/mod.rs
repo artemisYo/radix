@@ -20,7 +20,7 @@ impl Iterator for InstStep {
     type Item = InstIdx;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.head >= self.end {return None;}
+        if self.head > self.end {return None;}
         let out = InstIdx::from(self.head as usize);
         self.head += 1;
         Some(out)
@@ -95,19 +95,17 @@ impl Unit<InConstruction> {
     pub fn new_block(&mut self, sig: &[Type]) -> BlockIdx {
         assert!(self.insts.last().unwrap().is_term());
         let sig = self.sigs.append(sig);
-        self.blocks.push(Block {sig, start: 0.into(), end: 0.into()})
+        self.blocks.push(Block {sig, start: self.insts.last_key(), end: 0.into()})
     }
 }
 
 #[derive(Debug)]
 pub struct InstStack<'a>(&'a mut Unit<InConstruction>);
 impl<'a> InstStack<'a> {
-    fn new_inst(&mut self) {
-        let b = self.0.blocks.last_mut().unwrap();
-        b.end.0 += 1;
+    pub fn terminate(&mut self) {
+        self.0.blocks.last_mut().unwrap().end = self.0.insts.last_key();
     }
     pub fn iconst(&mut self, int: usize) -> InstIdx {
-        self.new_inst();
         match u32::try_from(int) {
             Ok(i) => self.0.insts.push(Instruction::IntConst(i)),
             Err(_) => {
@@ -120,8 +118,8 @@ impl<'a> InstStack<'a> {
         }
     }
     pub fn ret(&mut self, value: InstIdx) {
-        self.new_inst();
         self.0.insts.push(Instruction::Ret(value));
+        self.terminate();
     }
 }
 
