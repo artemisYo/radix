@@ -2,6 +2,7 @@
 #define VEC_IMPL
 
 #include <stddef.h>
+#include <string.h>
 
 // vec typename
 #define Vec(type) struct __Vec_##type
@@ -13,9 +14,11 @@
 #define vec_pop(type, vec) __Vec_##type##_pop(vec)
 #define vec_grow_for(type, vec, cap) __Vec_##type##_grow_for(vec, cap)
 #define vec_index(type, vec, index) __Vec_##type##_index(vec, index)
+#define vec_move_to_slice(type, vec) __Vec_##type##_move_to_slice(vec)
 
 // generating a decl for the vec type
 #define DeclVec(type)                                           \
+DeclSlice(type);                                                \
 DeclOption(type);                                               \
 DeclPtr(type);                                                  \
 IdDeclOption(ptr(type));                                        \
@@ -56,8 +59,13 @@ void __Vec_##type##_grow_for(Vec(type) * vec, size_t req) {     \
 IdOption(ptr(type)) __Vec_##type##_index(Vec(type) * vec, size_t index) {\
     if (vec->len <= index) return IdNone(ptr(type));            \
     return IdSome(ptr(type), cast(type, vec->data + index));    \
-}
-
-// TODO: more functions like `move_to_slice`
+}                                                               \
+Slice(type) __Vec_##type##_move_to_slice(Vec(type) * vec) {     \
+    type * slice = alloc_many(type, vec->len);                  \
+    memcpy(slice, vec->data, vec->len * sizeof(type));          \
+    Slice(type) out = slice_from(type, slice, vec->len);        \
+    vec->len = 0;                                               \
+    return out;                                                 \
+}                                                               
 
 #endif

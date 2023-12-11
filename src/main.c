@@ -10,8 +10,12 @@ int fib(int n) {
 
 int main() {
     Vec(int) vec = vec_init(int);
-    for (int i = 0; i < 7; i++) vec_push(int, &vec, i);
-    for (size_t i = 0; i < 7; i++) 
-        printf("%li: %i\n", i, fib(deref(int, vec_index(int, &vec, i).data)));
+    for (int i = 0; i < 7; i++) vec_push(int, &vec, fib(i));
+    Slice(int) slice = vec_move_to_slice(int, &vec);
+    Option(int) head = slice_next(int, &slice);
+	while (head.is_ok) {
+        printf("%i\n", head.data);
+		head = slice_next(int, &slice);
+	}
     return 0;
 }
