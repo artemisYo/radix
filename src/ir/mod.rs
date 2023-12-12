@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::{MakeKey, MakeRange, utils::{Single, Multiple, KeyVec}};
+mod builder;
+pub use builder::{Builder, ret};
 
+MakeKey!(FuncRef, u32);
 MakeKey!(InstIdx, u32);
 MakeKey!(BlockIdx, u16);
 MakeRange!(SigIdx, u16, u8);
@@ -37,15 +40,16 @@ impl Finality for Finalized {}
 
 // one unit --- corresponds to a single function
 #[derive(Debug)]
-pub struct Unit<F: Finality> {
+pub struct Unit<'a, F: Finality> {
     _phantom: PhantomData<F>,
+    pub(self) funcs: KeyVec<Single, FuncRef, &'a [Type]>,
     pub(self) blocks: KeyVec<Single, BlockIdx, Block>,
     pub(self) insts: KeyVec<Single, InstIdx, Instruction>,
     pub(self) sigs: KeyVec<Multiple, SigIdx, Type>,
     pub(self) extra_args: KeyVec<Multiple, ArgIdx, u32>
 }
 
-impl Unit<Finalized> {
+impl<'a> Unit<'a, Finalized> {
     pub fn human_format(&self) -> String {
         let mut out = String::new();
         for (i, b) in self.blocks
@@ -54,7 +58,7 @@ impl Unit<Finalized> {
             .enumerate() {
             out.push_str(&format!(".b{} {:?}\n", i, &self.sigs[b.sig]));
             for inst in b.start.until(b.end) {
-                out.push_str(&format!("    {}\n", self.insts[inst]));
+                out.push_str(&format!("    @{}: {}\n", inst.0, self.insts[inst].human_format(&self.extra_args, &self.funcs)));
             }
         }
         out.push_str(
@@ -64,62 +68,36 @@ impl Unit<Finalized> {
     }
 }
 
-impl Unit<InConstruction> {
-    pub fn new(signature: &[Type]) -> Self {
+impl<'a> Unit<'a, InConstruction> {
+    fn new(signature: &'a [Type]) -> Self {
         let mut out = Self {
             _phantom: PhantomData,
+            funcs: KeyVec::<Single, FuncRef, &'a [Type]>::new(),
             blocks: KeyVec::<Single, BlockIdx, Block>::new(),
             insts: KeyVec::<Single, InstIdx, Instruction>::new(),
             sigs: KeyVec::<Multiple, SigIdx, Type>::new(),
             extra_args: KeyVec::<Multiple, ArgIdx, u32>::new(),
         };
+        // register self
+        out.funcs.push(signature);
         // entry point block
         let sig = out.sigs.append(signature);
         out.blocks.push(Block {sig, start: 0.into(), end: 0.into()});
         out
     }
-    pub fn finalize(mut self, return_sig: &[Type]) -> Unit<Finalized> {
+    fn finalize(mut self, return_sig: &'a [Type]) -> Unit<Finalized> {
         let sig = self.sigs.append(return_sig);
         let idx = (u32::MAX as usize).into();
         // return point block
         self.blocks.push(Block {sig, start: idx, end: idx});
         Unit {
             _phantom: PhantomData,
+            funcs: self.funcs,
             blocks: self.blocks,
             insts: self.insts,
             sigs: self.sigs,
             extra_args: self.extra_args
         }
-    }
-    pub fn push(&mut self) -> InstStack {InstStack(self)}
-    pub fn new_block(&mut self, sig: &[Type]) -> BlockIdx {
-        assert!(self.insts.last().unwrap().is_term());
-        let sig = self.sigs.append(sig);
-        self.blocks.push(Block {sig, start: self.insts.last_key(), end: 0.into()})
-    }
-}
-
-#[derive(Debug)]
-pub struct InstStack<'a>(&'a mut Unit<InConstruction>);
-impl<'a> InstStack<'a> {
-    pub fn terminate(&mut self) {
-        self.0.blocks.last_mut().unwrap().end = self.0.insts.last_key();
-    }
-    pub fn iconst(&mut self, int: usize) -> InstIdx {
-        match u32::try_from(int) {
-            Ok(i) => self.0.insts.push(Instruction::IntConst(i)),
-            Err(_) => {
-                let i = self.0.extra_args.append(&[
-                    (int >> 32) as u32,
-                    (int & 0xFFFFFFFF) as u32
-                ]);
-                self.0.insts.push(Instruction::BIntConst(i))
-            }
-        }
-    }
-    pub fn ret(&mut self, value: InstIdx) {
-        self.0.insts.push(Instruction::Ret(value));
-        self.terminate();
     }
 }
 
@@ -133,27 +111,57 @@ pub struct Block {
 pub enum Type {Int8, Int16, Int32, Int64}
 #[derive(Debug)]
 pub enum Instruction {
-    IntConst(u32),
+    // mostly used for deleting instructions
+    Nop,
+    FetchArg(u32),
+    IntConst([u8;8]),
+    Add(InstIdx, InstIdx),
+    Sub(InstIdx, InstIdx),
+    Mult(InstIdx, InstIdx),
+    Div(InstIdx, InstIdx),
+    Less(InstIdx, InstIdx),
+    More(InstIdx, InstIdx),
+    Equal(InstIdx, InstIdx),
+    Call(FuncRef, ArgIdx),
     // used for ints > 32 bits
-    BIntConst(ArgIdx),
-    Ret(InstIdx)
+    DoIf(InstIdx),
+    Branch(BlockIdx, ArgIdx),
 }
 impl Instruction {
     fn is_term(&self) -> bool {
         use Instruction::*;
         match self {
-            Ret(_) => true,
+            Branch(_, _) => true,
             _ => false
         }
     }
 }
-impl std::fmt::Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Instruction {
+    fn human_format(
+        &self,
+        args: &KeyVec<Multiple, ArgIdx, u32>,
+        funcs: &KeyVec<Single, FuncRef, &[Type]>,
+    ) -> String {
         use Instruction::*;
         match self {
-            IntConst(i) => f.write_str(&format!("const {}", i)),
-            BIntConst(a) => f.write_str(&format!("const &{}", a.0)),
-            Ret(v) => f.write_str(&format!("return @{}", v.0)),
+            Nop => "".to_string(),
+            FetchArg(n) => format!("blockArg[{}]", n),
+            IntConst(i) => format!("const {:?}", i),
+    		Add(a, b) => format!("add @{} @{}", a.0, b.0),
+    		Sub(a, b) => format!("sub @{} @{}", a.0, b.0),
+    		Mult(a, b) => format!("mult @{} @{}", a.0, b.0),
+    		Div(a, b) => format!("div @{} @{}", a.0, b.0),
+    		Less(a, b) => format!("less @{} @{}", a.0, b.0),
+    		More(a, b) => format!("more @{} @{}", a.0, b.0),
+    		Equal(a, b) => format!("equal @{} @{}", a.0, b.0),
+    		Call(f, a) => format!("call {:?} {:?}", &funcs[*f], &args[*a]),
+            DoIf(i) => format!("if @{}", i.0),
+            Branch(b, a) => {
+                let u16::MAX = b.0 else {
+                	return format!("branch b{} {:?}", b.0, &args[*a]);
+                };
+                format!("branch return {:?}", &args[*a])
+            },
         }
     }
 }

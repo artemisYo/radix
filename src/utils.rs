@@ -86,12 +86,21 @@ impl<K: Key, V> KeyVec<Single, K, V> {
     pub fn last_key(&self) -> K {
         (self.1.len() - 1).into()
     }
+    pub fn new_key(&self) -> K {
+		self.1.len().into()
+    }
 }
 impl<K: Range, V: Clone> KeyVec<Multiple, K, V> {
     pub fn append(&mut self, value: &[V]) -> K {
         let out = (self.1.len(), value.len()).into();
         self.1.extend_from_slice(value);
         out
+    }
+    pub fn append_from_iter(&mut self, value: impl Iterator<Item = V>) -> K {
+        let start = self.1.len();
+        self.1.extend(value);
+        let end = self.1.len() - start;
+        (start, end).into()
     }
 }
 
@@ -117,3 +126,4 @@ impl<K: Key, V> IntoIterator for KeyVec<Single, K, V> {
         self.1.into_iter()
     }
 }
+
