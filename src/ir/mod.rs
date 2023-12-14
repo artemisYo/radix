@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use crate::{MakeKey, MakeRange, utils::{Single, Multiple, KeyVec}};
 mod builder;
-pub use builder::{Builder, ret};
+mod blocks;
+pub use builder::ret;
 
 MakeKey!(FuncRef, u32);
 MakeKey!(InstIdx, u32);
@@ -69,7 +70,7 @@ impl<'a> Unit<'a, Finalized> {
 }
 
 impl<'a> Unit<'a, InConstruction> {
-    fn new(signature: &'a [Type]) -> Self {
+    pub fn new(sig: &'a [Type]) -> Self {
         let mut out = Self {
             _phantom: PhantomData,
             funcs: KeyVec::<Single, FuncRef, &'a [Type]>::new(),
@@ -78,18 +79,19 @@ impl<'a> Unit<'a, InConstruction> {
             sigs: KeyVec::<Multiple, SigIdx, Type>::new(),
             extra_args: KeyVec::<Multiple, ArgIdx, u32>::new(),
         };
-        // register self
-        out.funcs.push(signature);
-        // entry point block
-        let sig = out.sigs.append(signature);
-        out.blocks.push(Block {sig, start: 0.into(), end: 0.into()});
+        // padding, as 0 InstIdx is used as a None value
+        out.insts.push(Instruction::Nop);
+        // entry block
+        out.new_block(sig);
+        out.funcs.push(sig);
         out
     }
-    fn finalize(mut self, return_sig: &'a [Type]) -> Unit<Finalized> {
+    pub fn finalize(mut self, return_sig: &'a [Type]) -> Unit<Finalized> {
         let sig = self.sigs.append(return_sig);
         let idx = (u32::MAX as usize).into();
         // return point block
-        self.blocks.push(Block {sig, start: idx, end: idx});
+        self.blocks.push(Block::new(sig));
+        self.blocks.last_mut().unwrap().start = idx;
         Unit {
             _phantom: PhantomData,
             funcs: self.funcs,
@@ -106,6 +108,11 @@ pub struct Block {
     sig: SigIdx,
     start: InstIdx,
     end: InstIdx,
+}
+impl Block {
+	pub fn new(sig: SigIdx) -> Self {
+		Self {sig, start: 0.into(), end: 0.into()}
+	}
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Type {Int8, Int16, Int32, Int64}

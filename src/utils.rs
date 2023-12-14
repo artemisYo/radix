@@ -14,6 +14,10 @@ use std::marker::PhantomData;
                 &s[TryInto::<usize>::try_into(self.0)
                     .expect("Could not convert out of key type!")]
             }
+            fn index_mut<T>(self, s: &mut [T]) -> &mut T {
+                &mut s[TryInto::<usize>::try_into(self.0)
+                    .expect("Could not convert out of key type!")]
+            }
         }
     };
 }
@@ -40,6 +44,7 @@ use std::marker::PhantomData;
 
 pub trait Key: From<usize> {
     fn index<'a, T>(self, _: &'a [T]) -> &'a T;
+    fn index_mut<T>(self, s: &mut [T]) -> &mut T;
 }
 pub trait Range: From<(usize, usize)> {
     fn index<'a, T>(self, _: &'a [T]) -> &'a [T];
@@ -108,6 +113,11 @@ impl<K: Key, V> std::ops::Index<K> for KeyVec<Single, K, V> {
     type Output = V;
     fn index(&self, index: K) -> &Self::Output {
         index.index(self.1.as_slice())
+    }
+}
+impl<K: Key, V> std::ops::IndexMut<K> for KeyVec<Single, K, V> {
+    fn index_mut(&mut self, index: K) -> &mut Self::Output {
+        index.index_mut(self.1.as_mut_slice())
     }
 }
 impl<K: Range, V> std::ops::Index<K> for KeyVec<Multiple, K, V> {
