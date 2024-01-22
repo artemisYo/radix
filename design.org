@@ -1,0 +1,136 @@
+* Register Allocation
+Allocating to registers is a complicated endeavour, considering the
+heaps of restrictions that isa's like x86 place upon the developer, as
+well as the very limited nature of registers. The following is a
+description of the allocation procedure and common hardships
+encountered during it.
+** Lifetimes
+A major approach to handling all sorts of allocations is to think
+about lifetimes. Be it stackframe allocators verifying that no data is
+dropped while still being referenced, handling the deallocation for
+arena allocators or other contexts.
+Radix's intermediate representation is inherently an SSA-form
+language — that is, no label for a value can be used for multiple
+different values, as it is always simply the internal index of the
+instruction that produced it. Thus it lends itself rather well to the
+lifetime-based approach of handling allocations, as each value and
+thus label enters once and lives on until it's last use.
+This is however the part where it get's a bit complicated: Values can
+have multiple last uses through diverging branches. While it may die
+in some 7th instruction located in b2, it may also die in the 9th
+instruction in b3:
+#+begin_src radix
+    |-b1--------------|
+    | %1 = const 1    |-\
+ /--| %2 = const 2    | |
+ |  | %3 : if %1      |-/
+ |  | %4 : then br b2 |
+ ^  | %5 : else br b3 |
+/ \ |-b2--------------|
+: | | %6 = add %2, %2 |-\
+: \-| %7 = xor %6, %2 |=/-\
+:   | %8 : return %7  |---/
+|   |-b3--------------|
+\---| %9 : return %2  |
+    |=ret (Int64)=====|
+#+end_src
+This is no problem though: simply treating each branch in isolation,
+almost emulating the branching in the analysis, works! Now all there
+is to do is to store multiple indeces for the last use of a value, not
+just one.
+*** TODO Constraints
+An important aspect of value allocation is to solve certain
+constraints, such as a given value —when produced— being spawned in
+the register of a previous value (x86 add puts the result in the first
+operand).
+**** Explicit Data Flow
+One way to address the simple case of reused registers is to introduce
+an explicit copy of a value into another label, if the use of the
+value is not the last one, then making the original lifetime end at
+said use and further only considering the copy:
+#+begin_src radix
+ir next to virtual register assignments
+    |-----------------|     @1 @2
+    | %1 = const 1    |-\   %1
+  /-| %2 = const 2    | |   |  %2
+  \-| %3 = add %1, %2 |-+   ?? |
+  /-| %4 = const 5    | |   |  %4
+  \-| %5 = shl %1, %4 |-/   |  |
+    |-----------------|     |
+becomes:
+    |-----------------|     @1 @2 @3
+    | %1 = const 1    |-\   %1
+  /-| %2 = const 2    | |   |  %2
+/-|-| %3 = cpy %1     |-+   |  |  %3
+| \-| %4 = add %1, %2 |-/   %4 |  |
+|   | %5 = const 5    |-\   |  %5 |
+\---| %6 = shl %3, %5 |-/   |  |  |
+    |-----------------|     |
+#+end_src
+Furthermore a similar thing can be done for the last use of a given
+value in an instruction, that carries on it's operand as the result
+register: inserting a reuse-register directive, which may be
+implemented as some form of allocator-level copy, allows us to satifsy
+the reuse-register constraint without thinking about it.
+#+begin_src radix
+    |-----------------|     @1 @2
+  /-| %1 = const 1    |     %1
+  | | %2 = const 2    |-\   |  %2
+  \-| %3 = add %1, %2 |-/   ?? |
+    |-----------------|     |
+becomes:
+    |-----------------|     @1 @2
+  /-| %1 = const 1    |     %1
+  | | %2 = const 2    |-\   |  %2
+  \-| _ : %3 reuse %1 | |   |  |
+    | %3 = add %1, %2 |-/   %3 |
+    |-----------------|     |  
+#+end_src
+On x86 this effectively transforms the given program to a single
+static use form.
+#+begin_src radix
+  %1        |  %1         = inst
+  ??        | [%2 in rax] = inst
+  |         |  %3         = inst [%1 in rax]
+------------|---becomes
+  %1        |  %1         = inst
+     %1     |  __         = mov __, %1
+  %2 |      | [%2 in rax] = inst
+  %1 %2     |  __         = xchg %1, %2
+  |  |      |  %3         = [%1 in rax]
+#+end_src
+We could also deal with fixed register constraints in a similar way,
+where if any register is not in the required register, it is simply
+moved there, or the two registers are exchanged if the required
+register is currently occupied. If an instruction then outputs to a
+fixed register that is currently occupied by a different value, it can
+also be 'fixed up' by moving the value out to a different register.
+While this is possible, it may not be the best way to go about things,
+as is seen in the above example: It /may/ produce unecessary juggling
+of values.
+** Virtual Registers
+Once every value was assigned a lifetime, the values are assigned to
+virtual registers. Every value is scanned in order of appearance; a
+given value is then assigned to either an existing virtual register,
+which contains no life value, or, if no such registers exist, another
+is created.
+This should provide a smaller set of objects to consider
+for the actual allocation process.
+** Real Registers
+Once every value is confined to a virtual register, the next step in
+the process is to assign each of them a given real register.
+The most prominent problem in this step is spilling: given many values
+with overlapping lifetimes, the number of virtual registers will
+become larger than the number of real registers.
+In this case it is not possible to allocate each virtual register
+exclusive access to a register. Thus each register needs to be at some
+point spilled onto the stack, in order to accomodate new values, then
+be recovered when the original value is to be used.
+The central operation becomes exchange. Virtual registers are assigned
+the real registers as a property, location, but when no allocation is
+possible, we then have to pick a given virtual register (that is
+currently allocated) and exchange it's location with the location of
+the register to be allocated (the stack is assumed to be the default
+location). Later on, when a given virtual register is used, it can be
+recovered in the same fashion.
+*** TODO Register Spill Heuristics

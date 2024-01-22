@@ -1,4 +1,4 @@
-use super::{*, blocks::{InstBuilder, TerminatorBuilder}};
+use super::{*, blocks::BlockHandle};
 
 #[derive(Debug)]
 pub enum Instruction {
@@ -14,7 +14,6 @@ pub enum Instruction {
     More(InstIdx, InstIdx),
     Equal(InstIdx, InstIdx),
     Call(FuncRef, ArgIdx),
-    // used for ints > 32 bits
     DoIf(InstIdx),
     Branch(BlockIdx, ArgIdx),
 }
@@ -27,6 +26,8 @@ impl Instruction {
         }
     }
 }
+
+pub struct InstBuilder<'a, 'b: 'a, 'c: 'b>(pub(super) &'a mut BlockHandle<&'b mut Unit<'c, InConstruction>>);
 
 impl<'a> InstBuilder<'a, '_, '_> {
     pub fn fetch_arg(&mut self, n: u32) -> InstIdx {
@@ -66,6 +67,12 @@ impl<'a> InstBuilder<'a, '_, '_> {
     }
 }
 
+pub struct TerminatorBuilder<'a, 'b>(pub(super) BlockHandle<&'a mut Unit<'b, InConstruction>>);
+impl Drop for TerminatorBuilder<'_, '_> {
+    fn drop(&mut self) {
+        self.0.handle.blocks[self.0.index].end = self.0.handle.insts.last_key();
+    }
+}
 pub fn ret(value: &[InstIdx]) -> (BlockIdx, &[InstIdx]) {
 	((u16::MAX as usize).into(), value)
 }

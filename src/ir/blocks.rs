@@ -1,4 +1,4 @@
-use super::*;
+use super::{*, instructions::{InstBuilder, TerminatorBuilder}};
 
 impl Unit<'_, InConstruction> {
     pub fn entry_block(&self) -> BlockHandle<()> {
@@ -18,6 +18,7 @@ impl Unit<'_, InConstruction> {
 }
 
 pub trait BuilderHandleable {}
+// this one is used for builders that are currently 'turned off'
 impl BuilderHandleable for () {}
 impl BuilderHandleable for &mut Unit<'_, InConstruction> {}
 
@@ -28,14 +29,6 @@ pub struct BlockHandle<T: BuilderHandleable> {
 impl<T: BuilderHandleable> From<&BlockHandle<T>> for BlockIdx {
     fn from(value: &BlockHandle<T>) -> Self {
         value.index
-    }
-}
-
-pub struct InstBuilder<'a, 'b: 'a, 'c: 'b>(pub(super) &'a mut BlockHandle<&'b mut Unit<'c, InConstruction>>);
-pub struct TerminatorBuilder<'a, 'b>(pub(super) BlockHandle<&'a mut Unit<'b, InConstruction>>);
-impl Drop for TerminatorBuilder<'_, '_> {
-    fn drop(&mut self) {
-        self.0.handle.blocks[self.0.index].end = self.0.handle.insts.last_key();
     }
 }
 

@@ -30,32 +30,6 @@ pub struct Unit<'a, F: Finality> {
     pub(self) extra_args: KeyVec<Multiple, ArgIdx, u32>
 }
 
-fn lifetime_annot(unit: &mut Unit<'_, Finalized>) {
-    let mut last_used = KeyVec::<Single, InstIdx, InstIdx>::new();
-    for (idx, i) in unit.insts.iter().enumerate()
-        .map(|(idx, i)| (Into::<InstIdx>::into(idx), i)) {
-        match i {
-            Instruction::Sub(a, b)
-			| Instruction::Add(a, b) => {
-    			last_used[*a] = idx;
-    			last_used[*b] = idx;
-			}
-			Instruction::Call(_, a) => {
-				let args = &unit.extra_args[*a];
-				for a in args {
-					last_used[(*a as usize).into()] = idx;
-				}
-			}
-			_ => todo!()
-        }
-    }
-    // then iterate each instruction, giving it a register
-    // then when there are no more registers available
-    // check whether any of the registers contain a dead instruction
-    // if so then use that
-    // otherwise spill
-}
-
 impl<'a> Unit<'a, InConstruction> {
     pub fn new(sig: &'a [Type]) -> Self {
         let mut out = Self {
