@@ -1,4 +1,4 @@
-use std::mem::ManuallyDrop;
+use std::{mem::ManuallyDrop, marker::PhantomData};
 
 type Sig = Vec<Type>;
 
@@ -10,13 +10,15 @@ impl Unit {
     pub fn new() -> Self {
         Self { blocks: Vec::new() }
     }
-    pub fn new_block(&mut self, sig: Sig) -> Block<()> {
+    pub fn new_block(&mut self, sig: Sig) -> Block<Uninit> {
         let idx = self.blocks.len();
         self.blocks.push(BlockData::new(sig));
-        ManuallyDrop::new(BlockHandle { index: idx, handle: () })
+        Block { index: idx, _p: PhantomData }
     }
-    pub fn switch_block(&mut self, b: Block<()>) -> Block<&mut Self> {
-        ManuallyDrop::new(BlockHandle { index: b.index, handle: self })
+    pub fn seal(&self, b: Block<T>)
+    pub fn with_block<F>(&mut self, b: Block<Uninit>, f: F) -> Block<Init>
+    where F: FnOnce(BlockHandle) -> Block<Init> {
+		f(BlockHandle(&mut self.blocks[b.index]))
     }
 }
 
@@ -30,12 +32,15 @@ impl BlockData {
     }
 }
 
-pub type Block<T> = ManuallyDrop<BlockHandle<T>>;
-
-pub struct BlockHandle<T> {
+pub struct Uninit;
+pub struct Init;
+pub struct Sealed;
+pub struct Block<T> {
     index: usize,
-    handle: T
+    _p: PhantomData<T>
 }
+
+pub struct BlockHandle<'a>(&'a mut BlockData);
 
 pub enum Type {}
 pub enum Inst {}
