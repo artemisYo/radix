@@ -1,56 +1,56 @@
-mod unit;
+mod builder;
+mod data;
+mod instructions;
+mod util;
+mod format;
+
+pub use data::Type;
+pub use data::Unit;
 
 #[cfg(test)]
 mod tests {
-    use super::unit;
+    use super::*;
     #[test]
-    fn test() {
-		let mut unit = unit::Unit::new();
-		let b = unit.new_block(Vec::new());
+    fn fib() {
+        let mut unit = Unit::new();
+        let b0 = unit.new_block(&[Type::Int32]);
+        let b1 = unit.new_block(&[]);
+        // it can't tell n would be initialized in the closure
+        let mut n = Default::default();
+        unit.with_block(b0, |mut block| {
+            n = block.fetch_arg(0);
+            let two = block.iconst(2);
+            let cond = block.less(n, two);
+            block.do_if(cond).ret(&[n]).branch(&b1, &[])
+        });
+        unit.with_block(b1, |mut block| {
+            let one = block.iconst(1);
+            let a = block.sub(n, one);
+            let fa = block.recurse(&[a]);
+            let two = block.iconst(2);
+            let b = block.sub(n, two);
+            let fb = block.recurse(&[b]);
+            let o = block.add(fa, fb);
+            block.ret(&[o])
+        });
+        let ir = unit.finalize(Box::new([Type::Int32]));
+        eprintln!("{}", ir.human_format());
     }
-    //#[test]
-    //fn fib() {
-	//	let mut unit = ir::Unit::new(&[ir::Type::Int32]);
-	//	let b0 = unit.entry_block();
-	//	let b1 = unit.new_block(&[]);
-	//	let n;
-	//	{
-    //		let mut b0 = unit.switch_to(&b0);
-	//		n = b0.push().fetch_arg(0);
-	//		let two = b0.push().iconst(2);
-	//		let cond = b0.push().less(n, two);
-	//		b0.terminate().branch_if(cond,
-    //			[ ir::ret(&[n])
-    //    		, ((&b1).into(), &[])]);
-	//	}
-	//	{
-    //		let mut b1 = unit.switch_to(&b1);
-    //    	let one = b1.push().iconst(1);
-	//		let a = b1.push().sub(n, one);
-	//		let fa = b1.push().recurse(&[a]);
-	//		let two = b1.push().iconst(2);
-	//		let b = b1.push().sub(n, two);
-	//		let fb = b1.push().recurse(&[b]);
-	//		let o = b1.push().add(fa, fb);
-	//		b1.terminate().branch(ir::ret(&[o]));
-	//	}
-	//	let unit = unit.finalize(&[ir::Type::Int32]);
-    //    eprintln!("{}", unit.human_format());
-    //}
-    //#[test]
-    //fn construct() {
-    //    let mut unit = ir::Unit::new(&[]);
-    //    let b0 = unit.entry_block();
-    //    let mut b0 = unit.switch_to(&b0);
-    //    let p = b0.push().iconst(1);
-    //    let a = b0.push().iconst(5);
-    //    let b = b0.push().iconst(10);
-    //    let c = b0.push().iconst(0);
-    //    let d = b0.push().add(a, b);
-    //    b0.terminate().branch_if(p,
-    //    	[ ir::ret(&[c])
-    //    	, ir::ret(&[d])]);
-    //    let unit = unit.finalize(&[ir::Type::Int32]);
-    //    eprintln!("{}", unit.human_format());
-    //}
+    #[test]
+    fn construct() {
+       let mut unit = Unit::new();
+       let b0 = unit.new_block(&[]);
+       unit.with_block(b0, |mut block| {
+           let p = block.iconst(1);
+           let a = block.iconst(5);
+           let b = block.iconst(10);
+           let c = block.iconst(0);
+           let d = block.add(a, b);
+           block.do_if(p)
+           	   .ret(&[c])
+           	   .ret(&[d])
+       });
+       let unit = unit.finalize(Box::new([Type::Int32]));
+       eprintln!("{}", unit.human_format());
+    }
 }
