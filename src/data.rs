@@ -123,34 +123,34 @@ impl Key for Block {
 }
 
 impl KeyChain for Signature {
-    fn from(first: usize, last: usize) -> Option<Self>
+    fn from(idx: usize, len: usize) -> Option<Self>
     where
         Self: Sized,
     {
-        let first = first.try_into().ok()?;
-        let last = last.try_into().ok()?;
-        Some(Self([first, last]))
+        let idx = idx.try_into().ok()?;
+        let len = len.try_into().ok()?;
+        Some(Self([idx, len]))
     }
 
     fn into(self) -> (usize, usize) {
-        let [first, last] = self.0;
-        (first as usize, last as usize)
+        let [idx, len] = self.0;
+        (idx as usize, len as usize)
     }
 }
 
 impl KeyChain for Data {
-    fn from(first: usize, last: usize) -> Option<Self>
+    fn from(idx: usize, len: usize) -> Option<Self>
     where
         Self: Sized,
     {
-        let first = first.try_into().ok()?;
-        let last = last.try_into().ok()?;
-        Some(Self([first, last]))
+        let idx = idx.try_into().ok()?;
+        let len = len.try_into().ok()?;
+        Some(Self([idx, len]))
     }
 
     fn into(self) -> (usize, usize) {
-        let [first, last] = self.0;
-        (first as usize, last as usize)
+        let [idx, len] = self.0;
+        (idx as usize, len as usize)
     }
 }
 

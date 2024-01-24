@@ -17,7 +17,7 @@ pub trait Key {
     fn into(self) -> usize;
 }
 pub trait KeyChain {
-    fn from(first: usize, last: usize) -> Option<Self>
+    fn from(idx: usize, len: usize) -> Option<Self>
     where
         Self: Sized;
     fn into(self) -> (usize, usize);
@@ -70,29 +70,29 @@ impl<K: KeyChain, T> JaggedVec<K, T> {
     where
         T: Clone,
     {
-        let start = self.0.len();
+        let idx = self.0.len();
         self.0.extend_from_slice(slice);
-        let end = self.0.len();
-        K::from(start, end - 1).unwrap()
+        let len = self.0.len();
+        K::from(idx, len).unwrap()
     }
     pub fn push_iter<I>(&mut self, iter: I) -> K
     where
         I: IntoIterator<Item = T>,
     {
-        let start = self.0.len();
+        let idx = self.0.len();
         self.0.extend(iter);
-        let end = self.0.len();
-        K::from(start, end - 1).unwrap()
+        let len = self.0.len();
+        K::from(idx, len).unwrap()
     }
     pub fn push_ref_iter<'a, I>(&mut self, iter: I) -> K
     where
         T: Copy + 'a,
         I: IntoIterator<Item = &'a T>,
     {
-        let start = self.0.len();
+        let idx = self.0.len();
         self.0.extend(iter);
-        let end = self.0.len();
-        K::from(start, end - 1).unwrap()
+        let len = self.0.len();
+        K::from(idx, len).unwrap()
     }
 }
 impl<K, T> std::iter::Extend<T> for JaggedVec<K, T> {
@@ -110,12 +110,12 @@ impl<K: KeyChain, T> std::ops::Index<K> for JaggedVec<K, T> {
 
     fn index(&self, index: K) -> &Self::Output {
         let (start, end) = index.into();
-        &self.0[start..=end]
+        &self.0[start..end]
     }
 }
 impl<K: KeyChain, T> std::ops::IndexMut<K> for JaggedVec<K, T> {
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         let (start, end) = index.into();
-        &mut self.0[start..=end]
+        &mut self.0[start..end]
     }
 }
