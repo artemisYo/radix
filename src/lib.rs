@@ -1,6 +1,5 @@
 mod builder;
 mod data;
-mod instructions;
 mod util;
 mod format;
 
