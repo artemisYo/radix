@@ -1,4 +1,4 @@
-use crate::data::{Block, Unit, InstData, TermData, Instruction};
+use crate::data::{Block, InstData, Instruction, TermData, Unit};
 
 pub(crate) struct InstIter([Instruction; 2]);
 impl std::iter::Iterator for InstIter {
@@ -25,19 +25,15 @@ impl Unit {
         let mut out: String = "".into();
         let mut inst_counter = 0;
         for (bi, b) in self.blocks.iter().enumerate() {
-            write!(
-                out,
-                "---b{}{:?}:\n",
-                bi,
-                &self.signatures[b.signature]
-            ).unwrap();
+            write!(out, "---b{}{:?}:\n", bi, &self.signatures[b.signature]).unwrap();
             for i in b.start.until(b.end) {
                 write!(
                     out,
                     "|\t@{} {}\n",
                     inst_counter,
                     self.instructions[i].human_format(self)
-                ).unwrap();
+                )
+                .unwrap();
                 inst_counter += 1;
             }
         }

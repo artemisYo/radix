@@ -1,9 +1,9 @@
 mod builder;
 mod data;
-mod util;
 mod format;
-mod verification;
 mod life;
+mod util;
+mod verification;
 
 pub use data::Type;
 pub use data::Unit;
@@ -39,33 +39,31 @@ mod tests {
     }
     #[test]
     fn construct() {
-       let mut unit = Unit::new();
-       let b0 = unit.new_block(&[]);
-       unit.with_block(b0, |mut block| {
-           let p = block.iconst(1);
-           let a = block.iconst(5);
-           let b = block.iconst(10);
-           let c = block.iconst(0);
-           let d = block.add(a, b);
-           block.do_if(p)
-           	   .ret(&[c])
-           	   .ret(&[d])
-       });
-       let unit = unit.finalize(Box::new([Type::Int32]));
-       eprintln!("{}", unit.human_format());
+        let mut unit = Unit::new();
+        let b0 = unit.new_block(&[]);
+        unit.with_block(b0, |mut block| {
+            let p = block.iconst(1);
+            let a = block.iconst(5);
+            let b = block.iconst(10);
+            let c = block.iconst(0);
+            let d = block.add(a, b);
+            block.do_if(p).ret(&[c]).ret(&[d])
+        });
+        let unit = unit.finalize(Box::new([Type::Int32]));
+        eprintln!("{}", unit.human_format());
     }
     #[test]
-	fn lots_unused() {
-		let mut unit = Unit::new();
-		let b0 = unit.new_block(&[]);
-		unit.with_block(b0, |mut block| {
-			let a = block.iconst(69);
-			let _ = block.iconst(420);
-			let b = block.iconst(1);
-			let _ = block.add(a, b);
-			block.ret(&[])
-		});
-		let unit = unit.finalize(Box::new([]));
-		eprintln!("{}", unit.human_format());
-	}
+    fn lots_unused() {
+        let mut unit = Unit::new();
+        let b0 = unit.new_block(&[]);
+        unit.with_block(b0, |mut block| {
+            let a = block.iconst(69);
+            let _ = block.iconst(420);
+            let b = block.iconst(1);
+            let _ = block.add(a, b);
+            block.ret(&[])
+        });
+        let unit = unit.finalize(Box::new([]));
+        eprintln!("{}", unit.human_format());
+    }
 }

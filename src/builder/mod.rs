@@ -1,6 +1,5 @@
 use crate::data::{
-    Block, BlockData, BlockHandle, InstData, Instruction, SigSlice, TermData,
-    Unit, Type
+    Block, BlockData, BlockHandle, InstData, Instruction, SigSlice, TermData, Type, Unit,
 };
 use crate::util::{False, True};
 use std::marker::PhantomData;

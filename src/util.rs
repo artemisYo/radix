@@ -15,39 +15,43 @@ pub struct QuadVec<T> {
     side: usize,
 }
 impl<T> QuadVec<T> {
-	pub fn new(side: usize) -> Self {
-		Self {
-			inner: Vec::with_capacity(side * side),
-			side,
-		}
-	}
-	pub fn filled_default(side: usize) -> Self
-	where T: Default + Clone {
-    	Self {
-			inner: vec![T::default(); side * side],
-			side,
-    	}
-	}
-	pub fn filled(side: usize, e: T) -> Self
-	where T: Clone {
-    	Self {
-			inner: vec![e; side * side],
-			side,
-    	}
-	}
-	pub fn row(&mut self, index: usize) -> QuadSlice<T> {
-		let slice = &mut self.inner[index * self.side..][..self.side];
-		QuadSlice { slice, stride: 0 }
-	}
-	pub fn col(&mut self, index: usize) -> QuadSlice<T> {
-    	let slice = &mut self.inner[index..];
-    	let stride = self.side;
-    	QuadSlice { slice, stride }
-	}
+    pub fn new(side: usize) -> Self {
+        Self {
+            inner: Vec::with_capacity(side * side),
+            side,
+        }
+    }
+    pub fn filled_default(side: usize) -> Self
+    where
+        T: Default + Clone,
+    {
+        Self {
+            inner: vec![T::default(); side * side],
+            side,
+        }
+    }
+    pub fn filled(side: usize, e: T) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            inner: vec![e; side * side],
+            side,
+        }
+    }
+    pub fn row(&mut self, index: usize) -> QuadSlice<T> {
+        let slice = &mut self.inner[index * self.side..][..self.side];
+        QuadSlice { slice, stride: 0 }
+    }
+    pub fn col(&mut self, index: usize) -> QuadSlice<T> {
+        let slice = &mut self.inner[index..];
+        let stride = self.side;
+        QuadSlice { slice, stride }
+    }
 }
 pub struct QuadSlice<'a, T> {
-	slice: &'a mut [T],
-	stride: usize,
+    slice: &'a mut [T],
+    stride: usize,
 }
 impl<'a, T> std::ops::Index<usize> for QuadSlice<'a, T> {
     type Output = T;
@@ -56,7 +60,7 @@ impl<'a, T> std::ops::Index<usize> for QuadSlice<'a, T> {
         &self.slice[index * self.stride]
     }
 }
-impl<'a, T> std::ops::IndexMut<usize> for QuadSlice<'a ,T> {
+impl<'a, T> std::ops::IndexMut<usize> for QuadSlice<'a, T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.slice[index * self.stride]
     }
@@ -80,7 +84,7 @@ impl<K, T> KeyVec<K, T> {
         Self(Vec::new(), PhantomData)
     }
     pub fn len(&self) -> usize {
-		self.0.len()
+        self.0.len()
     }
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.0.iter()

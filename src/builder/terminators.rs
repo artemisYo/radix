@@ -22,20 +22,24 @@ impl<'a, Seal> Builder<'a, Seal> {
         }
     }
     pub fn ret(mut self, args: &[Instruction]) -> BlockHandle<True, Seal> {
-		self.ret_inner(args);
-		self.terminate()
+        self.ret_inner(args);
+        self.terminate()
     }
-    pub fn branch<T>(mut self, block: &BlockHandle<T, False>, args: &[Instruction]) -> BlockHandle<True, Seal> {
-		self.branch_inner(block, args);
-		self.terminate()
+    pub fn branch<T>(
+        mut self,
+        block: &BlockHandle<T, False>,
+        args: &[Instruction],
+    ) -> BlockHandle<True, Seal> {
+        self.branch_inner(block, args);
+        self.terminate()
     }
     pub fn do_if(self, condition: Instruction) -> IfBuilder<'a, False, Seal> {
         self.handle
             .instructions
             .push(InstData::Terminator(TermData::DoIf(condition)));
         IfBuilder {
-			builder: self,
-			_p: PhantomData,
+            builder: self,
+            _p: PhantomData,
         }
     }
 }

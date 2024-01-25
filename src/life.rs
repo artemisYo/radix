@@ -1,9 +1,9 @@
-use crate::data::{Unit, Block, Instruction};
+use crate::data::{Block, Instruction, Unit};
 
 #[derive(Clone, Copy)]
 pub enum Duration {
-	Leak,
-	Until(Instruction),
+    Leak,
+    Until(Instruction),
 }
 
 impl Unit {
@@ -14,9 +14,9 @@ impl Unit {
         let cap = (blockdata.end.0 - blockdata.start.0) as usize;
         let mut acc = vec![Duration::Leak; cap];
         for (n, i) in blockdata.start.until(blockdata.end).enumerate() {
-			let instdata = &self.instructions[i];
-			todo!()
+            let instdata = &self.instructions[i];
+            todo!()
         }
-    	acc
+        acc
     }
 }
