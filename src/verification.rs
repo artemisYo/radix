@@ -34,11 +34,19 @@ impl Unit {
         // as used, if the inst itself is used
         for block in order.into_iter().rev().map(|i| Block(i)) {
             let blockdata = &self.blocks[block];
-            for inst in blockdata.start.until(blockdata.end) {
-                let [a, b] = self.instructions[inst].get_insts();
-                if !unused[inst.0 as usize] {
-                    a.map(|i| unused[i.0 as usize] = false);
-                    b.map(|i| unused[i.0 as usize] = false);
+            for inst in blockdata.start.until(blockdata.end).rev() {
+                if !unused[inst.0 as usize] || self.instructions[inst].is_term() {
+               		match self.instructions[inst].get_insts(self) {
+               	    	Ok([a, b]) => {
+               	 		    a.map(|i| unused[i.0 as usize] = false);
+               	 		    b.map(|i| unused[i.0 as usize] = false);
+               	    	}
+               	    	Err(xs) => {
+							for x in xs {
+								unused[x.0 as usize] = false;
+            	            }
+            	        }
+            	    }
                 }
             }
         }
@@ -74,13 +82,21 @@ impl InstData {
             _ => None,
         }
     }
-    fn get_insts(&self) -> [Option<Instruction>; 2] {
+    fn get_insts<'a>(&self, unit: &'a Unit) -> Result<[Option<Instruction>; 2], &'a [Instruction]> {
         match self {
             Self::Add([a, b]) | Self::Sub([a, b]) | Self::Less([a, b]) | Self::More([a, b]) => {
-                [Some(*a), Some(*b)]
+                Ok([Some(*a), Some(*b)])
             }
-            Self::Terminator(crate::data::TermData::DoIf(i)) => [Some(*i), None],
-            _ => [None, None],
+            Self::Recur(a)
+            | Self::Terminator(crate::data::TermData::Branch(_, a)) => Err(&unit.data[*a]),
+            Self::Terminator(crate::data::TermData::DoIf(i)) => Ok([Some(*i), None]),
+            _ => Ok([None, None]),
         }
+    }
+    fn is_term(&self) -> bool {
+		match self {
+			Self::Terminator(_) => true,
+			_ => false,
+		}
     }
 }

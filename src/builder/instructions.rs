@@ -21,7 +21,7 @@ impl<'a, Seal> Builder<'a, Seal> {
         self.handle.instructions.push(InstData::Sub([a, b]))
     }
     pub fn recurse(&mut self, args: &[Instruction]) -> Instruction {
-        let data = self.handle.data.push_iter(args.into_iter().map(|a| a.0));
+        let data = self.handle.data.push_slice(args);
         self.handle.instructions.push(InstData::Recur(data))
     }
 }

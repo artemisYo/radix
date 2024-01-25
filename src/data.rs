@@ -18,7 +18,7 @@ pub struct Unit {
     // extra data stored contiguously, untyped,
     // use is determined by the instruction kind.
     // used to store stuff like branch arguments
-    pub(crate) data: JaggedVec<Data, u32>,
+    pub(crate) data: JaggedVec<Data, Instruction>,
     pub(crate) signatures: JaggedVec<Signature, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
     pub(crate) instructions: KeyVec<Instruction, InstData>,
@@ -160,8 +160,14 @@ impl std::fmt::Display for Instruction {
         write!(f, "@{}", self.0)
     }
 }
+impl std::fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}", self.0)
+    }
+}
 impl std::fmt::Display for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "b{}", self.0)
     }
 }
+

@@ -3,13 +3,13 @@ use super::*;
 /// Terminators for the Builder
 impl<'a, Seal> Builder<'a, Seal> {
     pub(crate) fn ret_inner(&mut self, args: &[Instruction]) {
-        let data = self.handle.data.push_iter(args.into_iter().map(|a| a.0));
+        let data = self.handle.data.push_slice(args);
         self.handle
             .instructions
             .push(InstData::Terminator(TermData::Branch(Block::MAX, data)));
     }
     pub(crate) fn branch_inner<T>(&mut self, block: &BlockHandle<T, False>, args: &[Instruction]) {
-        let data = self.handle.data.push_iter(args.into_iter().map(|a| a.0));
+        let data = self.handle.data.push_slice(args);
         self.handle
             .instructions
             .push(InstData::Terminator(TermData::Branch(block.index, data)));
