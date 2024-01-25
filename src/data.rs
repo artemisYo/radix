@@ -33,6 +33,7 @@ pub struct BlockData {
 }
 
 pub(crate) enum InstData {
+    Tombstone,
     FetchArg(usize),
     IConst(isize),
     Add([Instruction; 2]),

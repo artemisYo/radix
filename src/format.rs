@@ -1,6 +1,6 @@
 use crate::data::{Block, Unit, InstData, TermData, Instruction};
 
-struct InstIter([Instruction; 2]);
+pub(crate) struct InstIter([Instruction; 2]);
 impl std::iter::Iterator for InstIter {
     type Item = Instruction;
 
@@ -14,7 +14,7 @@ impl std::iter::Iterator for InstIter {
     }
 }
 impl Instruction {
-    fn until(self, end: Self) -> InstIter {
+    pub(crate) fn until(self, end: Self) -> InstIter {
         InstIter([self, end])
     }
 }
@@ -56,6 +56,7 @@ impl InstData {
             format!(
                 "= {}",
                 &match self {
+                    InstData::Tombstone => "_".to_string(),
                     InstData::FetchArg(i) => format!("fetchArg [{i}]"),
                     InstData::IConst(i) => format!("const {i}"),
                     InstData::Add([a, b]) => format!("add {a}, {b}"),
