@@ -5,7 +5,7 @@ impl std::iter::Iterator for InstIter {
     type Item = Instruction;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.0[0] > self.0[1] {
+        if self.0[0] >= self.0[1] {
             return None;
         }
         let out = self.0[0];
@@ -15,18 +15,17 @@ impl std::iter::Iterator for InstIter {
 }
 impl std::iter::DoubleEndedIterator for InstIter {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.0[0] > self.0[1] {
+        if self.0[0] >= self.0[1] {
 			return None;
         }
-        let out = self.0[1];
-        if self.0[1].0 > 0 {
-        	self.0[1].0 -= 1;
-        }
+        let out = self.0[0];
+        self.0[1].0 -= 1;
         Some(out)
     }
 }
 impl Instruction {
-    pub(crate) fn until(self, end: Self) -> InstIter {
+    pub(crate) fn until(self, mut end: Self) -> InstIter {
+        end.0 += 1;
         InstIter([self, end])
     }
 }

@@ -34,8 +34,8 @@ mod tests {
             let o = block.add(fa, fb);
             block.ret(&[o])
         });
-        let ir = unit.finalize(Box::new([Type::Int32]));
-        eprintln!("{}", ir.human_format());
+        let unit = unit.finalize(Box::new([Type::Int32]));
+        eprintln!("{}", unit.human_format());
     }
     #[test]
     fn construct() {
@@ -65,5 +65,20 @@ mod tests {
         });
         let unit = unit.finalize(Box::new([]));
         eprintln!("{}", unit.human_format());
+    }
+    #[test]
+    fn some_unused() {
+		let mut unit = Unit::new();
+		let b0 = unit.new_block(&[]);
+		unit.with_block(b0, |mut block| {
+            let p = block.iconst(1);
+            let a = block.iconst(5);
+            let b = block.iconst(10);
+            let c = block.iconst(0);
+            let d = block.add(a, b);
+            block.ret(&[d])
+		});
+		let unit = unit.finalize(Box::new([]));
+		eprintln!("{}", unit.human_format());
     }
 }

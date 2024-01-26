@@ -1,74 +1,57 @@
 use crate::data::BlockData;
-use crate::util::QuadVec;
 use crate::{data::Block, data::InstData, data::Instruction, Unit};
 
 impl Unit {
-    // traverses width-first and fills out an adjacency matrix
-    // where each row contains "true" for each directly previous block
-    // also returns the order of traversal
-    pub(crate) fn block_adjacency(&self) -> (Vec<u32>, QuadVec<bool>) {
-        let mut out = QuadVec::filled(self.blocks.len(), false);
-        let mut queue = vec![0];
-        let mut counter = 0;
-        while let Some(block) = queue.get(counter).cloned() {
-            let mut col = out.col(block as usize);
-            let blockdata = &self.blocks[Block(block)];
-            let [next, pass] = blockdata.get_next(self);
-            pass.map(|p| {
-                col[p.0 as usize] = true;
-                queue.push(p.0)
-            });
-            next.map(|p| {
-                col[p.0 as usize] = true;
-                queue.push(p.0)
-            });
-            counter += 1;
-        }
-        (queue, out)
+    fn width_first_ordering(&self) -> Vec<Block> {
+		let mut order = vec![Block(0)];
+		let mut i = 0;
+		while let Some(block) = order.get(i).cloned() {
+			let [a, b] = self.blocks[block].get_next(self);
+			a.map(|a| order.push(a));
+			b.map(|b| order.push(b));
+			i += 1;
+		}
+		order
     }
     pub(crate) fn remove_unused(&mut self) {
-        let mut unused = vec![true; self.instructions.len()];
-        let (order, _) = self.block_adjacency();
-        // iterate all blocks in reversed width-first order
-        // and mark any values appearing on the rhs of an inst
-        // as used, if the inst itself is used
-        for block in order.into_iter().rev().map(|i| Block(i)) {
-            let blockdata = &self.blocks[block];
-            for inst in blockdata.start.until(blockdata.end).rev() {
-                if !unused[inst.0 as usize] || self.instructions[inst].is_term() {
-               		match self.instructions[inst].get_insts(self) {
-               	    	Ok([a, b]) => {
-               	 		    a.map(|i| unused[i.0 as usize] = false);
-               	 		    b.map(|i| unused[i.0 as usize] = false);
-               	    	}
-               	    	Err(xs) => {
-							for x in xs {
-								unused[x.0 as usize] = false;
-            	            }
-            	        }
-            	    }
-                }
-            }
-        }
-        for (i, _) in unused.into_iter().enumerate().filter(|(_, b)| *b) {
-            self.instructions[Instruction(i as u32)] = InstData::Tombstone;
-        }
+		let order = self.width_first_ordering();
+		let mut unused = vec![true; self.instructions.len()];
+		for block in order.into_iter().rev() {
+    		let blockdata = &self.blocks[block];
+    		let last = blockdata.end.0;
+    		let first = blockdata.start.0;
+			for inst in (first..=last).rev() {
+				let instruction = &self.instructions[Instruction(inst)];
+				if instruction.is_term() {
+					unused[inst as usize] = false;
+				}
+    			if unused[inst as usize] {
+					continue;
+    			}
+				let refs = instruction.get_insts(self);
+				for i in refs {
+					unused[i.0 as usize] = false;
+				}
+			}
+		}
+		for i in unused.into_iter()
+    		.enumerate()
+    		.filter(|(_, b)| *b)
+    		.map(|(i, _)| Instruction(i as u32)) {
+			self.instructions[i] = InstData::Tombstone;
+    	}
     }
 }
 
 impl BlockData {
     // returns None for the return block index as it does not count as a block
     fn get_next(&self, unit: &Unit) -> [Option<Block>; 2] {
-        let mut out = [unit.instructions[self.end].get_block(), None];
-        if self.end.0 - self.start.0 < 2 {
-            return out;
-        }
-        if let InstData::Terminator(_) = unit.instructions[Instruction(self.end.0 - 2)] {
-            out = [
-                unit.instructions[Instruction(self.end.0 - 1)].get_block(),
-                unit.instructions[self.end].get_block(),
-            ];
-            return out;
+        let mut out = [
+        	unit.instructions.get(self.end).map(InstData::get_block).flatten(),
+        	unit.instructions.get(Instruction(self.end.0 - 1)).map(InstData::get_block).flatten(),
+        ];
+        if self.end == self.start {
+            out[1] = None;
         }
         out
     }
@@ -82,15 +65,13 @@ impl InstData {
             _ => None,
         }
     }
-    fn get_insts<'a>(&self, unit: &'a Unit) -> Result<[Option<Instruction>; 2], &'a [Instruction]> {
+    fn get_insts<'a>(&'a self, unit: &'a Unit) -> &'a [Instruction] {
         match self {
-            Self::Add([a, b]) | Self::Sub([a, b]) | Self::Less([a, b]) | Self::More([a, b]) => {
-                Ok([Some(*a), Some(*b)])
-            }
+            Self::Add(a) | Self::Sub(a) | Self::Less(a) | Self::More(a) => a,
             Self::Recur(a)
-            | Self::Terminator(crate::data::TermData::Branch(_, a)) => Err(&unit.data[*a]),
-            Self::Terminator(crate::data::TermData::DoIf(i)) => Ok([Some(*i), None]),
-            _ => Ok([None, None]),
+            | Self::Terminator(crate::data::TermData::Branch(_, a)) => &unit.data[*a],
+            Self::Terminator(crate::data::TermData::DoIf(i)) => std::slice::from_ref(i),
+            _ => &[],
         }
     }
     fn is_term(&self) -> bool {

@@ -61,7 +61,7 @@ pub struct Signature(pub(crate) [u32; 2]);
 // addresses an instruction, index only
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct Instruction(pub(crate) u32);
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
 pub struct Block(pub(crate) u32);
 // stores some guards for builders
 pub struct BlockHandle<Init, Sealed> {
