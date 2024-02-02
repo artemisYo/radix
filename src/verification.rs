@@ -2,11 +2,6 @@ use crate::data::BlockData;
 use crate::{data::Block, data::InstData, data::Instruction, Unit};
 
 impl Unit {
-    // returns the immediate dominators of each block
-    fn idoms(&self) -> Vec<Block> {
-        let mut out = vec![Block(0); self.blocks.len()];
-        out
-    }
     fn width_first_ordering(&self) -> Vec<Block> {
 		let mut order = vec![Block(0)];
 		let mut i = 0;

@@ -2,6 +2,7 @@ use crate::data::{
     Block, BlockData, BlockHandle, InstData, Instruction, SigSlice, TermData, Type, Unit,
 };
 use crate::util::{False, True};
+use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 mod instructions;
@@ -36,6 +37,7 @@ impl Unit {
         let idx = self.blocks.next_idx();
         let sig_idx = self.signatures.push_slice(sig);
         self.blocks.push(BlockData::new(sig_idx));
+        self.backlinks.push(BTreeSet::new());
         BlockHandle {
             index: idx,
             _p: PhantomData,
