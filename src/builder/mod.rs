@@ -2,7 +2,6 @@ use crate::data::{
     Block, BlockData, BlockHandle, InstData, Instruction, SigSlice, TermData, Type, Unit,
 };
 use crate::util::{False, True};
-use std::collections::BTreeSet;
 use std::marker::PhantomData;
 
 mod instructions;
@@ -37,7 +36,6 @@ impl Unit {
         let idx = self.blocks.next_idx();
         let sig_idx = self.signatures.push_slice(sig);
         self.blocks.push(BlockData::new(sig_idx));
-        self.backlinks.push(BTreeSet::new());
         BlockHandle {
             index: idx,
             _p: PhantomData,
@@ -68,7 +66,7 @@ impl Unit {
     /// Finalizes the unit.
     /// Checks it for consistency, prevents further
     /// modification by the user.
-    pub fn finalize(mut self, sig: Box<[Type]>) -> Self {
+    pub fn finalize(mut self, sig: Type) -> Self {
         self.retsig = Some(sig);
         // run a function to check the validity of the ir here
         self.remove_unused();

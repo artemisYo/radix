@@ -42,7 +42,7 @@ impl Unit {
                     out,
                     "|\t@{} {}\n",
                     inst_counter,
-                    self.instructions[i].human_format(self)
+                    self.instructions[i].1.human_format(self)
                 )
                 .unwrap();
                 inst_counter += 1;

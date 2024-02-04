@@ -1,27 +1,34 @@
 use crate::builder::Builder;
-use crate::data::{InstData, Instruction};
+use crate::data::{InstData, Instruction, Type};
 
 impl<'a, Seal> Builder<'a, Seal> {
     pub fn fetch_arg(&mut self, index: usize) -> Instruction {
-        self.handle.instructions.push(InstData::FetchArg(index))
+        let s = self.handle.blocks[self.block.index].signature;
+        let t = self.handle.signatures[s][index];
+        self.handle.instructions.push((t, InstData::FetchArg(index)))
     }
-    pub fn iconst(&mut self, number: isize) -> Instruction {
-        self.handle.instructions.push(InstData::IConst(number))
+    pub fn iconst(&mut self, t: Type, number: isize) -> Instruction {
+        self.handle.instructions.push((t, InstData::IConst(number)))
     }
     pub fn less(&mut self, a: Instruction, b: Instruction) -> Instruction {
-        self.handle.instructions.push(InstData::Less([a, b]))
+        let t = self.handle.instructions[a].0;
+        self.handle.instructions.push((t, InstData::Less([a, b])))
     }
     pub fn more(&mut self, a: Instruction, b: Instruction) -> Instruction {
-        self.handle.instructions.push(InstData::More([a, b]))
+        let t = self.handle.instructions[a].0;
+        self.handle.instructions.push((t, InstData::More([a, b])))
     }
     pub fn add(&mut self, a: Instruction, b: Instruction) -> Instruction {
-        self.handle.instructions.push(InstData::Add([a, b]))
+        let t = self.handle.instructions[a].0;
+        self.handle.instructions.push((t, InstData::Add([a, b])))
     }
     pub fn sub(&mut self, a: Instruction, b: Instruction) -> Instruction {
-        self.handle.instructions.push(InstData::Sub([a, b]))
+        let t = self.handle.instructions[a].0;
+        self.handle.instructions.push((t, InstData::Sub([a, b])))
     }
     pub fn recurse(&mut self, args: &[Instruction]) -> Instruction {
         let data = self.handle.data.push_slice(args);
-        self.handle.instructions.push(InstData::Recur(data))
+        let t = self.handle.retsig.unwrap_or(Type::Void);
+        self.handle.instructions.push((t, InstData::Recur(data)))
     }
 }

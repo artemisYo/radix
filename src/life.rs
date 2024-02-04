@@ -12,9 +12,9 @@ impl Unit {
     fn block_lifetimes(&self, block: Block) -> Vec<Duration> {
         let blockdata = &self.blocks[block];
         let cap = (blockdata.end.0 - blockdata.start.0) as usize;
-        let mut acc = vec![Duration::Leak; cap];
-        for (n, i) in blockdata.start.until(blockdata.end).enumerate() {
-            let instdata = &self.instructions[i];
+        let acc = vec![Duration::Leak; cap];
+        for (_n, i) in blockdata.start.until(blockdata.end).enumerate() {
+            let _instdata = &self.instructions[i];
             todo!()
         }
         acc

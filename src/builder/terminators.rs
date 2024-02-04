@@ -6,13 +6,13 @@ impl<'a, Seal> Builder<'a, Seal> {
         let data = self.handle.data.push_slice(args);
         self.handle
             .instructions
-            .push(InstData::Terminator(TermData::Branch(Block::MAX, data)));
+            .push((Type::Void, InstData::Terminator(TermData::Branch(Block::MAX, data))));
     }
     pub(crate) fn branch_inner<T>(&mut self, block: &BlockHandle<T, False>, args: &[Instruction]) {
         let data = self.handle.data.push_slice(args);
         self.handle
             .instructions
-            .push(InstData::Terminator(TermData::Branch(block.index, data)));
+            .push((Type::Void, InstData::Terminator(TermData::Branch(block.index, data))));
     }
     pub(crate) fn terminate(self) -> BlockHandle<True, Seal> {
         let index = self.block.index;
@@ -36,7 +36,7 @@ impl<'a, Seal> Builder<'a, Seal> {
     pub fn do_if(self, condition: Instruction) -> IfBuilder<'a, False, Seal> {
         self.handle
             .instructions
-            .push(InstData::Terminator(TermData::DoIf(condition)));
+            .push((Type::Void, InstData::Terminator(TermData::DoIf(condition))));
         IfBuilder {
             builder: self,
             _p: PhantomData,

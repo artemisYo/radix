@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 
 // Contains structs that store the actual data
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Type {
     Int32,
+    Void,
 }
 
 // Containers
@@ -15,14 +16,11 @@ pub enum Type {
 pub type SigSlice<'a> = &'a [Type];
 
 pub struct Unit {
-    // extra data stored contiguously, untyped,
-    // use is determined by the instruction kind.
-    // used to store stuff like branch arguments
     pub(crate) data: JaggedVec<Data, Instruction>,
     pub(crate) signatures: JaggedVec<Signature, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
-    pub(crate) instructions: KeyVec<Instruction, InstData>,
-    pub(crate) retsig: Option<Box<[Type]>>,
+    pub(crate) instructions: KeyVec<Instruction, (Type, InstData)>,
+    pub(crate) retsig: Option<Type>,
 }
 
 #[derive(Default)]
