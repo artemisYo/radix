@@ -1,4 +1,4 @@
-use crate::data::{Block, InstData, Instruction, TermData, Unit};
+use crate::data::{Block, InstKind, InstData, Instruction, TermData, Unit};
 
 pub(crate) struct InstIter([Instruction; 2]);
 impl std::iter::Iterator for InstIter {
@@ -36,13 +36,19 @@ impl Unit {
         let mut out: String = "".into();
         let mut inst_counter = 0;
         for (bi, b) in self.blocks.iter().enumerate() {
-            write!(out, "---b{}{:?}:\n", bi, &self.signatures[b.signature]).unwrap();
+            write!(
+                out,
+                "---b{}{:?}; {:?}:\n",
+                bi,
+                &self.signatures[b.signature],
+                &b.dd,
+            ).unwrap();
             for i in b.start.until(b.end) {
                 write!(
                     out,
                     "|\t@{} {}\n",
                     inst_counter,
-                    self.instructions[i].1.human_format(self)
+                    self.instructions[i].human_format(self)
                 )
                 .unwrap();
                 inst_counter += 1;
@@ -57,21 +63,27 @@ impl Unit {
 
 impl InstData {
     fn human_format(&self, unit: &Unit) -> String {
-        if let InstData::Terminator(t) = self {
+        self.kind.human_format(unit)
+    }
+}
+
+impl InstKind {
+    fn human_format(&self, unit: &Unit) -> String {
+        if let InstKind::Terminator(t) = self {
             t.human_format(unit)
         } else {
             format!(
                 "= {}",
                 &match self {
-                    InstData::Tombstone => "_".to_string(),
-                    InstData::FetchArg(i) => format!("fetchArg [{i}]"),
-                    InstData::IConst(i) => format!("const {i}"),
-                    InstData::Add([a, b]) => format!("add {a}, {b}"),
-                    InstData::Sub([a, b]) => format!("sub {a}, {b}"),
-                    InstData::Less([a, b]) => format!("less {a}, {b}"),
-                    InstData::More([a, b]) => format!("more {a}, {b}"),
-                    InstData::Recur(d) => format!("recur {:?}", &unit.data[*d]),
-                    InstData::Terminator(_) => unreachable!(),
+                    InstKind::Tombstone => "_".to_string(),
+                    InstKind::FetchArg(i) => format!("fetchArg [{i}]"),
+                    InstKind::IConst(i) => format!("const {i}"),
+                    InstKind::Add([a, b]) => format!("add {a}, {b}"),
+                    InstKind::Sub([a, b]) => format!("sub {a}, {b}"),
+                    InstKind::Less([a, b]) => format!("less {a}, {b}"),
+                    InstKind::More([a, b]) => format!("more {a}, {b}"),
+                    InstKind::Recur(d) => format!("recur {:?}", &unit.data[*d]),
+                    InstKind::Terminator(_) => unreachable!(),
                 }
             )
         }

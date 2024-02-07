@@ -1,4 +1,4 @@
-use crate::data::{BlockData, Block, InstData, Instruction, Unit, Type};
+use crate::data::{BlockData, Block, InstKind, InstData, Instruction, Unit, Type};
 
 impl Unit {
     fn width_first_ordering(&self) -> Vec<Block> {
@@ -21,13 +21,13 @@ impl Unit {
     		let first = blockdata.start.0;
 			for inst in (first..=last).rev() {
 				let instruction = &self.instructions[Instruction(inst)];
-				if instruction.1.is_term() {
+				if instruction.kind.is_term() {
 					unused[inst as usize] = false;
 				}
     			if unused[inst as usize] {
 					continue;
     			}
-				let refs = instruction.1.get_insts(self);
+				let refs = instruction.kind.get_insts(self);
 				for i in refs {
 					unused[i.0 as usize] = false;
 				}
@@ -37,7 +37,12 @@ impl Unit {
     		.enumerate()
     		.filter(|(_, b)| *b)
     		.map(|(i, _)| Instruction(i as u32)) {
-			self.instructions[i] = (Type::Void, InstData::Tombstone);
+            let inst = InstData {
+                block: self.instructions[i].block,
+                kind: InstKind::Tombstone,
+                typing: Type::Void,
+            };
+			self.instructions[i] = inst;
     	}
     }
 }
@@ -46,8 +51,8 @@ impl BlockData {
     // returns None for the return block index as it does not count as a block
     fn get_next(&self, unit: &Unit) -> [Option<Block>; 2] {
         let mut out = [
-        	unit.instructions.get(self.end).map(|(_, i)| i.get_block()).flatten(),
-        	unit.instructions.get(Instruction(self.end.0 - 1)).map(|(_, i)| i.get_block()).flatten(),
+        	unit.instructions.get(self.end).map(|i| i.kind.get_block()).flatten(),
+        	unit.instructions.get(Instruction(self.end.0 - 1)).map(|i| i.kind.get_block()).flatten(),
         ];
         if self.end == self.start {
             out[1] = None;
@@ -56,7 +61,7 @@ impl BlockData {
     }
 }
 
-impl InstData {
+impl InstKind {
     fn get_block(&self) -> Option<Block> {
         match self {
             Self::Terminator(crate::data::TermData::Branch(Block::MAX, _)) => None,

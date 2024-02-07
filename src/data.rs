@@ -1,6 +1,8 @@
 use crate::util::{JaggedVec, Key, KeyChain, KeyVec};
 use std::marker::PhantomData;
 
+pub type Set<V> = std::collections::BTreeSet<V>;
+
 // Contains structs that store the actual data
 
 #[derive(Debug, Clone, Copy)]
@@ -19,18 +21,25 @@ pub struct Unit {
     pub(crate) data: JaggedVec<Data, Instruction>,
     pub(crate) signatures: JaggedVec<Signature, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
-    pub(crate) instructions: KeyVec<Instruction, (Type, InstData)>,
+    pub(crate) instructions: KeyVec<Instruction, InstData>,
     pub(crate) retsig: Option<Type>,
 }
 
 #[derive(Default)]
 pub struct BlockData {
+    pub(crate) dd: Set<Block>,
     pub(crate) signature: Signature,
     pub(crate) start: Instruction,
     pub(crate) end: Instruction,
 }
 
-pub(crate) enum InstData {
+
+pub(crate) struct InstData {
+    pub(crate) block: Block,
+    pub(crate) typing: Type,
+    pub(crate) kind: InstKind,
+}
+pub(crate) enum InstKind {
     Tombstone,
     FetchArg(usize),
     IConst(isize),
@@ -62,9 +71,9 @@ pub struct Instruction(pub(crate) u32);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
 pub struct Block(pub(crate) u32);
 // stores some guards for builders
-pub struct BlockHandle<Init, Sealed> {
+pub struct BlockHandle<Init> {
     pub(crate) index: Block,
-    pub(crate) _p: PhantomData<(Init, Sealed)>,
+    pub(crate) _p: PhantomData<Init>,
 }
 
 // Rest

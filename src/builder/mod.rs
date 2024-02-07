@@ -1,5 +1,5 @@
 use crate::data::{
-    Block, BlockData, BlockHandle, InstData, Instruction, SigSlice, TermData, Type, Unit,
+    Block, BlockData, BlockHandle, InstKind, InstData, Instruction, SigSlice, TermData, Type, Unit,
 };
 use crate::util::{False, True};
 use std::marker::PhantomData;
@@ -8,31 +8,32 @@ mod instructions;
 mod terminators;
 
 /// Builder
-pub struct Builder<'a, Seal> {
-    pub(crate) block: BlockHandle<False, Seal>,
+pub struct Builder<'a> {
+    pub(crate) block: BlockHandle<False>,
     pub(crate) handle: &'a mut Unit,
 }
 
-// Stuff related to the builder pattern used
-// for writing instructions and stuff
-
-impl<Init> BlockHandle<Init, False> {
-    /// Seals the block.
-    /// This disallows branching to this block.
-    pub fn seal(self) -> BlockHandle<Init, True> {
-        BlockHandle {
-            index: self.index,
-            _p: PhantomData,
+impl<'a> Builder<'a> {
+    pub(crate) fn register_dd<I>(&mut self, inst: I)
+    where I: IntoIterator<Item = Instruction>
+    {
+        for inst in inst.into_iter() {
+        	let bd = self.handle.instructions[inst].block;
+        	if bd != self.block.index {
+        	    self.handle.blocks[self.block.index].dd.insert(bd);
+        	}
         }
     }
 }
 
+// Stuff related to the builder pattern used
+// for writing instructions and stuff
 impl Unit {
     /// Creates a block and returns it's index.
     /// The block is bound to the given signature,
     /// however does not contain any instructions nor
     /// any entry points, unless it's the first block.
-    pub fn new_block(&mut self, sig: SigSlice) -> BlockHandle<False, False> {
+    pub fn new_block(&mut self, sig: SigSlice) -> BlockHandle<False> {
         let idx = self.blocks.next_idx();
         let sig_idx = self.signatures.push_slice(sig);
         self.blocks.push(BlockData::new(sig_idx));
@@ -46,13 +47,13 @@ impl Unit {
     /// Can only be used once and the closure needs
     /// to return the updated form of the block
     /// obtained by inserting a terminator.
-    pub fn with_block<Seal, F>(
+    pub fn with_block<F>(
         &mut self,
-        b: BlockHandle<False, Seal>,
+        b: BlockHandle<False>,
         f: F,
-    ) -> BlockHandle<True, Seal>
+    ) -> BlockHandle<True>
     where
-        F: FnOnce(Builder<Seal>) -> BlockHandle<True, Seal>,
+        F: FnOnce(Builder) -> BlockHandle<True>,
     {
         let idx = b.index;
         self.blocks[idx].start = self.instructions.next_idx();

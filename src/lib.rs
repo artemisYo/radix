@@ -20,21 +20,21 @@ mod tests {
         let mut n = Default::default();
         unit.with_block(b0, |mut block| {
             n = block.fetch_arg(0);
-            let two = block.iconst(2);
+            let two = block.iconst(Type::Int32, 2);
             let cond = block.less(n, two);
             block.do_if(cond).ret(&[n]).branch(&b1, &[])
         });
         unit.with_block(b1, |mut block| {
-            let one = block.iconst(1);
+            let one = block.iconst(Type::Int32, 1);
             let a = block.sub(n, one);
             let fa = block.recurse(&[a]);
-            let two = block.iconst(2);
+            let two = block.iconst(Type::Int32, 2);
             let b = block.sub(n, two);
             let fb = block.recurse(&[b]);
             let o = block.add(fa, fb);
             block.ret(&[o])
         });
-        let unit = unit.finalize(Box::new([Type::Int32]));
+        let unit = unit.finalize(Type::Int32);
         eprintln!("{}", unit.human_format());
     }
     #[test]
@@ -42,14 +42,14 @@ mod tests {
         let mut unit = Unit::new();
         let b0 = unit.new_block(&[]);
         unit.with_block(b0, |mut block| {
-            let p = block.iconst(1);
-            let a = block.iconst(5);
-            let b = block.iconst(10);
-            let c = block.iconst(0);
+            let p = block.iconst(Type::Int32, 1);
+            let a = block.iconst(Type::Int32, 5);
+            let b = block.iconst(Type::Int32, 10);
+            let c = block.iconst(Type::Int32, 0);
             let d = block.add(a, b);
             block.do_if(p).ret(&[c]).ret(&[d])
         });
-        let unit = unit.finalize(Box::new([Type::Int32]));
+        let unit = unit.finalize(Type::Int32);
         eprintln!("{}", unit.human_format());
     }
     #[test]
@@ -57,13 +57,13 @@ mod tests {
         let mut unit = Unit::new();
         let b0 = unit.new_block(&[]);
         unit.with_block(b0, |mut block| {
-            let a = block.iconst(69);
-            let _ = block.iconst(420);
-            let b = block.iconst(1);
+            let a = block.iconst(Type::Int32, 69);
+            let _ = block.iconst(Type::Int32, 420);
+            let b = block.iconst(Type::Int32, 1);
             let _ = block.add(a, b);
             block.ret(&[])
         });
-        let unit = unit.finalize(Box::new([]));
+        let unit = unit.finalize(Type::Void);
         eprintln!("{}", unit.human_format());
     }
     #[test]
@@ -71,14 +71,14 @@ mod tests {
 		let mut unit = Unit::new();
 		let b0 = unit.new_block(&[]);
 		unit.with_block(b0, |mut block| {
-            let p = block.iconst(1);
-            let a = block.iconst(5);
-            let b = block.iconst(10);
-            let c = block.iconst(0);
+            let p = block.iconst(Type::Int32, 1);
+            let a = block.iconst(Type::Int32, 5);
+            let b = block.iconst(Type::Int32, 10);
+            let c = block.iconst(Type::Int32, 0);
             let d = block.add(a, b);
             block.ret(&[d])
 		});
-		let unit = unit.finalize(Box::new([]));
+		let unit = unit.finalize(Type::Void);
 		eprintln!("{}", unit.human_format());
     }
 }
