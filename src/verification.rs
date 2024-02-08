@@ -1,38 +1,62 @@
-use crate::data::{BlockData, Block, InstKind, InstData, Instruction, Unit, Type};
+use crate::data::{BlockData, Block, InstKind, InstData, Instruction, Unit, Type, Set};
 
 impl Unit {
-    fn width_first_ordering(&self) -> Vec<Block> {
+	fn get_dependencies(&self, block: Block, visited: &mut Vec<Block>) -> Set<Block> {
+		let scope = visited.len();
+		visited.push(block);
+		let blockdata = &self.blocks[block];
+    	let mut out = Set::from_iter(blockdata.dd.iter().cloned());
+		for c in blockdata.get_next(self)
+    		.into_iter()
+    		.filter_map(|t| t)
+    	{
+        	if !visited.contains(&c) {
+            	out.append(&mut self.get_dependencies(c, visited));
+        	}
+		}
+		out.remove(&block);
+		visited.truncate(scope);
+		out
+	}
+    pub(crate) fn check_dependencies(&mut self) {
+        let mut visited = Vec::new();
+        if !self.get_dependencies(Block(0), &mut visited).is_empty() {
+			panic!("aaaa");
+        }
+    }
+    fn width_first_traversal<F>(&mut self, mut callback: F)
+    where F: FnMut(&mut Self, Block)
+    {
 		let mut order = vec![Block(0)];
 		let mut i = 0;
 		while let Some(block) = order.get(i).cloned() {
 			let [a, b] = self.blocks[block].get_next(self);
 			a.map(|a| if !order.contains(&a) { order.push(a) });
 			b.map(|b| if !order.contains(&b) { order.push(b) });
+			callback(self, block);
 			i += 1;
 		}
-		order
     }
     pub(crate) fn remove_unused(&mut self) {
-		let order = self.width_first_ordering();
 		let mut unused = vec![true; self.instructions.len()];
-		for block in order.into_iter().rev() {
-    		let blockdata = &self.blocks[block];
-    		let last = blockdata.end.0;
-    		let first = blockdata.start.0;
+		self.width_first_traversal(|unit, block| {
+			let blockdata = &unit.blocks[block];
+			let last = blockdata.end.0;
+			let first = blockdata.start.0;
 			for inst in (first..=last).rev() {
-				let instruction = &self.instructions[Instruction(inst)];
+				let instruction = &unit.instructions[Instruction(inst)];
 				if instruction.kind.is_term() {
 					unused[inst as usize] = false;
 				}
     			if unused[inst as usize] {
 					continue;
     			}
-				let refs = instruction.kind.get_insts(self);
+				let refs = instruction.kind.get_insts(unit);
 				for i in refs {
 					unused[i.0 as usize] = false;
 				}
 			}
-		}
+		});
 		for i in unused.into_iter()
     		.enumerate()
     		.filter(|(_, b)| *b)

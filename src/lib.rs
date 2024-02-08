@@ -81,4 +81,29 @@ mod tests {
 		let unit = unit.finalize(Type::Void);
 		eprintln!("{}", unit.human_format());
     }
+    #[test]
+    #[should_panic]
+    fn invalid_use() {
+		let mut unit = Unit::new();
+		let b0 = unit.new_block(&[]);
+		let b1 = unit.new_block(&[]);
+		let b2 = unit.new_block(&[]);
+		let b3 = unit.new_block(&[]);
+		let mut n = Default::default();
+		unit.with_block(b0, |mut block| {
+    		let c = block.iconst(Type::Int32, 1);
+    		block.do_if(c).branch(&b1, &[]).branch(&b2, &[])
+		});
+		unit.with_block(b1, |mut block| {
+			n = block.iconst(Type::Int32, 2);
+			block.branch(&b3, &[])
+		});
+		unit.with_block(b2, |block| {
+			block.branch(&b3, &[])
+		});
+		unit.with_block(b3, |block| {
+			block.ret(&[n])
+		});
+		unit.finalize(Type::Int32);
+    }
 }

@@ -70,6 +70,7 @@ impl Unit {
     pub fn finalize(mut self, sig: Type) -> Self {
         self.retsig = Some(sig);
         // run a function to check the validity of the ir here
+        self.check_dependencies();
         self.remove_unused();
         self
     }
