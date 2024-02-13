@@ -64,9 +64,23 @@ impl<K: Key, T> std::ops::IndexMut<K> for KeyVec<K, T> {
         &mut self.0[index.into()]
     }
 }
+impl<K: Key, T> std::ops::Index<(K, K)> for KeyVec<K, T> {
+    type Output = [T];
+
+    fn index(&self, index: (K, K)) -> &Self::Output {
+        let (start, end) = index;
+        &self.0[start.into()..end.into()]
+    }
+}
+impl<K: Key, T> std::ops::IndexMut<(K, K)> for KeyVec<K, T> {
+    fn index_mut(&mut self, index: (K, K)) -> &mut Self::Output {
+        let (start, end) = index;
+        &mut self.0[start.into()..end.into()]
+    }
+}
 
 pub struct JaggedVec<K, T>(Vec<T>, PhantomData<K>);
-impl<K, T> JaggedVec<K, T> {
+impl<K: KeyChain, T> JaggedVec<K, T> {
     pub fn new() -> Self {
         Self(Vec::new(), PhantomData)
     }

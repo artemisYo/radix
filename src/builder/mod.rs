@@ -1,5 +1,5 @@
 use crate::data::{
-    Block, BlockData, BlockHandle, InstKind, InstData, Instruction, SigSlice, TermData, Type, Unit,
+    Block, BlockData, BlockHandle, InstData, InstKind, Instruction, SigSlice, TermData, Type, Unit,
 };
 use crate::util::{False, True};
 use std::marker::PhantomData;
@@ -14,14 +14,15 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
-    pub(crate) fn register_dd<I>(&mut self, inst: I)
-    where I: IntoIterator<Item = Instruction>
+    pub(crate) fn register_dd<'b, I>(&mut self, inst: I)
+    where
+        I: IntoIterator<Item = &'b Instruction>,
     {
         for inst in inst.into_iter() {
-        	let bd = self.handle.instructions[inst].block;
-        	if bd != self.block.index {
-        	    self.handle.blocks[self.block.index].dd.insert(bd);
-        	}
+            let bd = self.handle.instructions[*inst].block;
+            if bd != self.block.index {
+                self.handle.blocks[self.block.index].dd.insert(bd);
+            }
         }
     }
 }
@@ -47,21 +48,19 @@ impl Unit {
     /// Can only be used once and the closure needs
     /// to return the updated form of the block
     /// obtained by inserting a terminator.
-    pub fn with_block<F>(
-        &mut self,
-        b: BlockHandle<False>,
-        f: F,
-    ) -> BlockHandle<True>
+    pub fn with_block<F>(&mut self, b: BlockHandle<False>, f: F) -> BlockHandle<True>
     where
         F: FnOnce(Builder) -> BlockHandle<True>,
     {
         let idx = b.index;
-        self.blocks[idx].start = self.instructions.next_idx();
+        self.blocks[idx].uset_start = self.use_meta.next_idx();
+        self.blocks[idx].inst_start = self.instructions.next_idx();
         let out = f(Builder {
             block: b,
             handle: self,
         });
-        self.blocks[idx].end = self.instructions.current_idx();
+        self.blocks[idx].uset_end = self.use_meta.current_idx();
+        self.blocks[idx].inst_end = self.instructions.current_idx();
         out
     }
     /// Finalizes the unit.

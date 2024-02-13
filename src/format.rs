@@ -1,4 +1,4 @@
-use crate::data::{Block, InstKind, InstData, Instruction, TermData, Unit};
+use crate::data::{Block, InstData, InstKind, Instruction, TermData, Unit};
 
 pub(crate) struct InstIter([Instruction; 2]);
 impl std::iter::Iterator for InstIter {
@@ -16,7 +16,7 @@ impl std::iter::Iterator for InstIter {
 impl std::iter::DoubleEndedIterator for InstIter {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.0[0] >= self.0[1] {
-			return None;
+            return None;
         }
         let out = self.0[0];
         self.0[1].0 -= 1;
@@ -39,11 +39,10 @@ impl Unit {
             write!(
                 out,
                 "---b{}{:?}; {:?}:\n",
-                bi,
-                &self.signatures[b.signature],
-                &b.dd,
-            ).unwrap();
-            for i in b.start.until(b.end) {
+                bi, &self.signatures[b.signature], &b.dd,
+            )
+            .unwrap();
+            for i in b.inst_start.until(b.inst_end) {
                 write!(
                     out,
                     "|\t@{} {}\n",
@@ -55,7 +54,7 @@ impl Unit {
             }
         }
         if let Some(s) = &self.retsig {
-            write!(out, "---return{:?}\n", s).unwrap();
+            write!(out, "---return({:?})\n", s).unwrap();
         }
         out
     }

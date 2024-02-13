@@ -11,6 +11,16 @@ pub enum Type {
     Void,
 }
 
+#[derive(Debug)]
+pub struct Settings {
+    pub volatile: bool,
+}
+impl std::default::Default for Settings {
+    fn default() -> Self {
+        Self { volatile: true }
+    }
+}
+
 // Containers
 //   ... contain data
 
@@ -18,10 +28,12 @@ pub enum Type {
 pub type SigSlice<'a> = &'a [Type];
 
 pub struct Unit {
+    pub settings: Settings,
     pub(crate) data: JaggedVec<Data, Instruction>,
     pub(crate) signatures: JaggedVec<Signature, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
     pub(crate) instructions: KeyVec<Instruction, InstData>,
+    pub(crate) use_meta: KeyVec<UseSet, UseMetadata>,
     pub(crate) retsig: Option<Type>,
 }
 
@@ -29,10 +41,11 @@ pub struct Unit {
 pub struct BlockData {
     pub(crate) dd: Set<Block>,
     pub(crate) signature: Signature,
-    pub(crate) start: Instruction,
-    pub(crate) end: Instruction,
+    pub(crate) uset_start: UseSet,
+    pub(crate) uset_end: UseSet,
+    pub(crate) inst_start: Instruction,
+    pub(crate) inst_end: Instruction,
 }
-
 
 pub(crate) struct InstData {
     pub(crate) block: Block,
@@ -55,6 +68,12 @@ pub(crate) enum TermData {
     Branch(Block, Data),
 }
 
+pub(crate) struct UseMetadata {
+    pub(crate) used: Instruction,
+    pub(crate) location: Instruction,
+    pub(crate) is_final: bool,
+}
+
 // Indeces
 //   These act as handles into the containers
 //   used for associating and addressing stuff
@@ -75,6 +94,10 @@ pub struct BlockHandle<Init> {
     pub(crate) index: Block,
     pub(crate) _p: PhantomData<Init>,
 }
+// stored in blockdata to associate a block with
+// the instruction use metadata
+#[derive(PartialEq, Eq, Default, Clone, Copy, Debug)]
+pub struct UseSet(pub(crate) u32);
 
 // Rest
 //   These are some trait impls and other stuff
@@ -83,10 +106,12 @@ pub struct BlockHandle<Init> {
 impl Unit {
     pub fn new() -> Self {
         Self {
+            settings: Settings::default(),
             data: JaggedVec::new(),
             signatures: JaggedVec::new(),
             blocks: KeyVec::new(),
             instructions: KeyVec::new(),
+            use_meta: KeyVec::new(),
             retsig: None,
         }
     }
@@ -162,6 +187,21 @@ impl KeyChain for Data {
     }
 }
 
+impl Key for UseSet {
+    fn from(idx: usize) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let idx = idx.try_into().ok()?;
+        Some(Self(idx))
+    }
+
+    fn into(self) -> usize {
+        let idx = self.0;
+        idx as usize
+    }
+}
+
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}", self.0)
@@ -177,4 +217,3 @@ impl std::fmt::Display for Block {
         write!(f, "b{}", self.0)
     }
 }
-
