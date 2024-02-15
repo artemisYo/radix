@@ -1,17 +1,7 @@
 use crate::builder::Builder;
-use crate::data::{InstData, InstKind, Instruction, Type, UseMetadata};
+use crate::data::{InstData, InstKind, Instruction, Type};
 
 impl<'a> Builder<'a> {
-    pub(crate) fn push_inst(&mut self, inst: InstData, used: &[Instruction]) -> Instruction {
-        for used in used.iter().cloned() {
-            self.handle.use_meta.push(UseMetadata {
-                location: self.handle.instructions.next_idx(),
-                is_final: false,
-                used,
-            });
-        }
-        self.handle.instructions.push(inst)
-    }
     pub fn fetch_arg(&mut self, index: usize) -> Instruction {
         let s = self.handle.blocks[self.block.index].signature;
         let t = self.handle.signatures[s][index];
@@ -20,7 +10,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::FetchArg(index),
             typing: t,
         };
-        self.push_inst(inst, &[])
+        self.handle.instructions.push(inst)
     }
     pub fn iconst(&mut self, t: Type, number: isize) -> Instruction {
         let inst = InstData {
@@ -28,7 +18,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::IConst(number),
             typing: t,
         };
-        self.push_inst(inst, &[])
+        self.handle.instructions.push(inst)
     }
     pub fn less(&mut self, args: [Instruction; 2]) -> Instruction {
         self.register_dd(&args);
@@ -38,7 +28,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Less(args),
             typing: t,
         };
-        self.push_inst(inst, &args)
+        self.handle.instructions.push(inst)
     }
     pub fn more(&mut self, args: [Instruction; 2]) -> Instruction {
         self.register_dd(&args);
@@ -48,7 +38,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::More(args),
             typing: t,
         };
-        self.push_inst(inst, &args)
+        self.handle.instructions.push(inst)
     }
     pub fn add(&mut self, args: [Instruction; 2]) -> Instruction {
         self.register_dd(&args);
@@ -58,7 +48,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Add(args),
             typing: t,
         };
-        self.push_inst(inst, &args)
+        self.handle.instructions.push(inst)
     }
     pub fn sub(&mut self, args: [Instruction; 2]) -> Instruction {
         self.register_dd(&args);
@@ -68,7 +58,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Sub(args),
             typing: t,
         };
-        self.push_inst(inst, &args)
+        self.handle.instructions.push(inst)
     }
     pub fn recurse(&mut self, args: &[Instruction]) -> Instruction {
         self.register_dd(args);
@@ -79,6 +69,6 @@ impl<'a> Builder<'a> {
             kind: InstKind::Recur(data),
             typing: t,
         };
-        self.push_inst(inst, args)
+        self.handle.instructions.push(inst)
     }
 }

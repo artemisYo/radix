@@ -1,6 +1,9 @@
 use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, Unit};
 
 impl Unit {
+    pub(crate) fn annotate_liveness(&mut self) {
+
+    }
     fn get_dependencies(&self, block: Block, visited: &mut Vec<Block>) -> Set<Block> {
         let scope = visited.len();
         visited.push(block);
@@ -48,9 +51,9 @@ impl Unit {
         let mut unused = vec![true; self.instructions.len()];
         self.width_first_traversal(|unit, block| {
             let blockdata = &unit.blocks[block];
-            let last = blockdata.inst_end.0;
-            let first = blockdata.inst_start.0;
-            for inst in (first..=last).rev() {
+            let last = blockdata.inst_range[1].0;
+            let first = blockdata.inst_range[0].0;
+            for inst in (first..last).rev() {
                 let instruction = &unit.instructions[Instruction(inst)];
                 if instruction.kind.is_term() {
                     unused[inst as usize] = false;
@@ -86,17 +89,18 @@ impl Unit {
 impl BlockData {
     // returns None for the return block index as it does not count as a block
     fn get_next(&self, unit: &Unit) -> [Option<Block>; 2] {
+        let [inst_start, inst_end] = self.inst_range;
         let mut out = [
             unit.instructions
-                .get(self.inst_end)
+                .get(inst_end)
                 .map(|i| i.kind.get_block())
                 .flatten(),
             unit.instructions
-                .get(Instruction(self.inst_end.0 - 1))
+                .get(Instruction(inst_end.0 - 1))
                 .map(|i| i.kind.get_block())
                 .flatten(),
         ];
-        if self.inst_end == self.inst_start {
+        if inst_end == inst_start {
             out[1] = None;
         }
         out

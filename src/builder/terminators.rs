@@ -10,7 +10,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Terminator(TermData::Branch(Block::MAX, data)),
             typing: Type::Void,
         };
-        self.push_inst(inst, args);
+        self.handle.instructions.push(inst);
     }
     pub(crate) fn branch_inner<T>(&mut self, block: &BlockHandle<T>, args: &[Instruction]) {
         self.register_dd(args);
@@ -20,7 +20,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Terminator(TermData::Branch(block.index, data)),
             typing: Type::Void,
         };
-        self.push_inst(inst, args);
+        self.handle.instructions.push(inst);
     }
     pub(crate) fn terminate(self) -> BlockHandle<True> {
         let index = self.block.index;
@@ -44,7 +44,7 @@ impl<'a> Builder<'a> {
             kind: InstKind::Terminator(TermData::DoIf(condition)),
             typing: Type::Void,
         };
-        self.push_inst(inst, &[condition]);
+        self.handle.instructions.push(inst);
         IfBuilder {
             builder: self,
             _p: PhantomData,

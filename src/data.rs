@@ -1,4 +1,4 @@
-use crate::util::{JaggedVec, Key, KeyChain, KeyVec};
+use crate::util::{Key, KeyVec};
 use std::marker::PhantomData;
 
 pub type Set<V> = std::collections::BTreeSet<V>;
@@ -29,22 +29,20 @@ pub type SigSlice<'a> = &'a [Type];
 
 pub struct Unit {
     pub settings: Settings,
-    pub(crate) data: JaggedVec<Data, Instruction>,
-    pub(crate) signatures: JaggedVec<Signature, Type>,
+    pub(crate) data: KeyVec<DataPart, Instruction>,
+    pub(crate) signatures: KeyVec<SignaturePart, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
     pub(crate) instructions: KeyVec<Instruction, InstData>,
-    pub(crate) use_meta: KeyVec<UseSet, UseMetadata>,
+    pub(crate) liveness: KeyVec<Liveness, (Instruction, LiveData)>,
     pub(crate) retsig: Option<Type>,
 }
 
 #[derive(Default)]
 pub struct BlockData {
     pub(crate) dd: Set<Block>,
-    pub(crate) signature: Signature,
-    pub(crate) uset_start: UseSet,
-    pub(crate) uset_end: UseSet,
-    pub(crate) inst_start: Instruction,
-    pub(crate) inst_end: Instruction,
+    pub(crate) signature: [SignaturePart; 2],
+    pub(crate) inst_range: [Instruction; 2],
+    pub(crate) liveness: [Liveness; 2],
 }
 
 pub(crate) struct InstData {
@@ -60,18 +58,18 @@ pub(crate) enum InstKind {
     Sub([Instruction; 2]),
     Less([Instruction; 2]),
     More([Instruction; 2]),
-    Recur(Data),
+    Recur([DataPart; 2]),
     Terminator(TermData),
 }
 pub(crate) enum TermData {
     DoIf(Instruction),
-    Branch(Block, Data),
+    Branch(Block, [DataPart; 2]),
 }
 
-pub(crate) struct UseMetadata {
-    pub(crate) used: Instruction,
-    pub(crate) location: Instruction,
-    pub(crate) is_final: bool,
+#[derive(Debug)]
+pub(crate) enum LiveData {
+    Alive,
+    Partial(Instruction),
 }
 
 // Indeces
@@ -80,10 +78,10 @@ pub(crate) struct UseMetadata {
 
 // addresses extra data, index + length
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
-pub struct Data(pub(crate) [u32; 2]);
+pub struct DataPart(pub(crate) u32);
 // addresses a signature, index + length
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
-pub struct Signature(pub(crate) [u32; 2]);
+pub struct SignaturePart(pub(crate) u32);
 // addresses an instruction, index only
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct Instruction(pub(crate) u32);
@@ -94,10 +92,9 @@ pub struct BlockHandle<Init> {
     pub(crate) index: Block,
     pub(crate) _p: PhantomData<Init>,
 }
-// stored in blockdata to associate a block with
-// the instruction use metadata
-#[derive(PartialEq, Eq, Default, Clone, Copy, Debug)]
-pub struct UseSet(pub(crate) u32);
+// index into liveness
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
+pub struct Liveness(pub(crate) u32);
 
 // Rest
 //   These are some trait impls and other stuff
@@ -107,18 +104,18 @@ impl Unit {
     pub fn new() -> Self {
         Self {
             settings: Settings::default(),
-            data: JaggedVec::new(),
-            signatures: JaggedVec::new(),
+            data: KeyVec::new(),
+            signatures: KeyVec::new(),
             blocks: KeyVec::new(),
             instructions: KeyVec::new(),
-            use_meta: KeyVec::new(),
+            liveness: KeyVec::new(),
             retsig: None,
         }
     }
 }
 
 impl BlockData {
-    pub(crate) fn new(sig: Signature) -> Self {
+    pub(crate) fn new(sig: [SignaturePart; 2]) -> Self {
         Self {
             signature: sig,
             ..Default::default()
@@ -135,7 +132,7 @@ impl Key for Instruction {
     }
 
     fn into(self) -> usize {
-        self.0.try_into().unwrap()
+        self.0 as usize
     }
 }
 
@@ -151,54 +148,45 @@ impl Key for Block {
     }
 
     fn into(self) -> usize {
-        self.0.try_into().unwrap()
+        self.0 as usize
     }
 }
 
-impl KeyChain for Signature {
-    fn from(idx: usize, len: usize) -> Option<Self>
+impl Key for Liveness {
+    fn from(index: usize) -> Option<Self>
     where
-        Self: Sized,
-    {
-        let idx = idx.try_into().ok()?;
-        let len = len.try_into().ok()?;
-        Some(Self([idx, len]))
+        Self: Sized {
+        Some(Self(index.try_into().ok()?))
     }
 
-    fn into(self) -> (usize, usize) {
-        let [idx, len] = self.0;
-        (idx as usize, len as usize)
+    fn into(self) -> usize {
+        self.0 as usize
     }
 }
 
-impl KeyChain for Data {
-    fn from(idx: usize, len: usize) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        let idx = idx.try_into().ok()?;
-        let len = len.try_into().ok()?;
-        Some(Self([idx, len]))
-    }
-
-    fn into(self) -> (usize, usize) {
-        let [idx, len] = self.0;
-        (idx as usize, len as usize)
-    }
-}
-
-impl Key for UseSet {
+impl Key for SignaturePart {
     fn from(idx: usize) -> Option<Self>
     where
         Self: Sized,
     {
-        let idx = idx.try_into().ok()?;
-        Some(Self(idx))
+        Some(Self(idx.try_into().ok()?))
     }
 
     fn into(self) -> usize {
-        let idx = self.0;
-        idx as usize
+        self.0 as usize
+    }
+}
+
+impl Key for DataPart {
+    fn from(idx: usize) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        Some(Self(idx.try_into().ok()?))
+    }
+
+    fn into(self) -> usize {
+        self.0 as usize
     }
 }
 

@@ -24,8 +24,7 @@ impl std::iter::DoubleEndedIterator for InstIter {
     }
 }
 impl Instruction {
-    pub(crate) fn until(self, mut end: Self) -> InstIter {
-        end.0 += 1;
+    pub(crate) fn until(self, end: Self) -> InstIter {
         InstIter([self, end])
     }
 }
@@ -42,7 +41,7 @@ impl Unit {
                 bi, &self.signatures[b.signature], &b.dd,
             )
             .unwrap();
-            for i in b.inst_start.until(b.inst_end) {
+            for i in b.inst_range[0].until(b.inst_range[1]) {
                 write!(
                     out,
                     "|\t@{} {}\n",

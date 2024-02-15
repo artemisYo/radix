@@ -53,24 +53,22 @@ impl Unit {
         F: FnOnce(Builder) -> BlockHandle<True>,
     {
         let idx = b.index;
-        self.blocks[idx].uset_start = self.use_meta.next_idx();
-        self.blocks[idx].inst_start = self.instructions.next_idx();
+        self.blocks[idx].inst_range[0] = self.instructions.next_idx();
         let out = f(Builder {
             block: b,
             handle: self,
         });
-        self.blocks[idx].uset_end = self.use_meta.current_idx();
-        self.blocks[idx].inst_end = self.instructions.current_idx();
+        self.blocks[idx].inst_range[1] = self.instructions.next_idx();
         out
     }
     /// Finalizes the unit.
-    /// Checks it for consistency, prevents further
-    /// modification by the user.
+    /// Checks it for consistency
     pub fn finalize(mut self, sig: Type) -> Self {
         self.retsig = Some(sig);
         // run a function to check the validity of the ir here
         self.check_dependencies();
         self.remove_unused();
+        self.annotate_liveness();
         self
     }
 }
