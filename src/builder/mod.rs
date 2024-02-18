@@ -13,20 +13,6 @@ pub struct Builder<'a> {
     pub(crate) handle: &'a mut Unit,
 }
 
-impl<'a> Builder<'a> {
-    pub(crate) fn register_dd<'b, I>(&mut self, inst: I)
-    where
-        I: IntoIterator<Item = &'b Instruction>,
-    {
-        for inst in inst.into_iter() {
-            let bd = self.handle.instructions[*inst].block;
-            if bd != self.block.index {
-                self.handle.blocks[self.block.index].dd.insert(bd);
-            }
-        }
-    }
-}
-
 // Stuff related to the builder pattern used
 // for writing instructions and stuff
 impl Unit {

@@ -39,7 +39,6 @@ pub struct Unit {
 
 #[derive(Default)]
 pub struct BlockData {
-    pub(crate) dd: Set<Block>,
     pub(crate) signature: [SignaturePart; 2],
     pub(crate) inst_range: [Instruction; 2],
     pub(crate) liveness: [Liveness; 2],

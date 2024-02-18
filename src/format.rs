@@ -37,8 +37,8 @@ impl Unit {
         for (bi, b) in self.blocks.iter().enumerate() {
             write!(
                 out,
-                "---b{}{:?}; {:?}:\n",
-                bi, &self.signatures[b.signature], &b.dd,
+                "---b{}{:?}:\n",
+                bi, &self.signatures[b.signature],
             )
             .unwrap();
             for i in b.inst_range[0].until(b.inst_range[1]) {

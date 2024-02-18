@@ -8,7 +8,14 @@ impl Unit {
         let scope = visited.len();
         visited.push(block);
         let blockdata = &self.blocks[block];
-        let mut set = Set::from_iter(blockdata.dd.iter().cloned());
+        //let mut set = Set::from_iter(blockdata.dd.iter().cloned());
+        let mut set = Set::new();
+        let first = blockdata.inst_range[0].0;
+        let last = blockdata.inst_range[1].0;
+        for i in (first..last).map(|i| Instruction(i)) {
+            let inst = &self.instructions[i];
+            set.insert(inst.block);
+        }
         for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
             if !visited.contains(&c) {
                 set.append(&mut self.get_dependencies(c, visited));
@@ -51,8 +58,8 @@ impl Unit {
         let mut unused = vec![true; self.instructions.len()];
         self.width_first_traversal(|unit, block| {
             let blockdata = &unit.blocks[block];
-            let last = blockdata.inst_range[1].0;
             let first = blockdata.inst_range[0].0;
+            let last = blockdata.inst_range[1].0;
             for inst in (first..last).rev() {
                 let instruction = &unit.instructions[Instruction(inst)];
                 if instruction.kind.is_term() {

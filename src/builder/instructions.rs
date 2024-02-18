@@ -21,7 +21,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst)
     }
     pub fn less(&mut self, args: [Instruction; 2]) -> Instruction {
-        self.register_dd(&args);
         let t = self.handle.instructions[args[0]].typing;
         let inst = InstData {
             block: self.block.index,
@@ -31,7 +30,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst)
     }
     pub fn more(&mut self, args: [Instruction; 2]) -> Instruction {
-        self.register_dd(&args);
         let t = self.handle.instructions[args[0]].typing;
         let inst = InstData {
             block: self.block.index,
@@ -41,7 +39,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst)
     }
     pub fn add(&mut self, args: [Instruction; 2]) -> Instruction {
-        self.register_dd(&args);
         let t = self.handle.instructions[args[0]].typing;
         let inst = InstData {
             block: self.block.index,
@@ -51,7 +48,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst)
     }
     pub fn sub(&mut self, args: [Instruction; 2]) -> Instruction {
-        self.register_dd(&args);
         let t = self.handle.instructions[args[0]].typing;
         let inst = InstData {
             block: self.block.index,
@@ -61,7 +57,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst)
     }
     pub fn recurse(&mut self, args: &[Instruction]) -> Instruction {
-        self.register_dd(args);
         let data = self.handle.data.push_slice(args);
         let t = self.handle.retsig.unwrap_or(Type::Void);
         let inst = InstData {

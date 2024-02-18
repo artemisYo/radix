@@ -3,7 +3,6 @@ use super::*;
 /// Terminators for the Builder
 impl<'a> Builder<'a> {
     pub(crate) fn ret_inner(&mut self, args: &[Instruction]) {
-        self.register_dd(args);
         let data = self.handle.data.push_slice(args);
         let inst = InstData {
             block: self.block.index,
@@ -13,7 +12,6 @@ impl<'a> Builder<'a> {
         self.handle.instructions.push(inst);
     }
     pub(crate) fn branch_inner<T>(&mut self, block: &BlockHandle<T>, args: &[Instruction]) {
-        self.register_dd(args);
         let data = self.handle.data.push_slice(args);
         let inst = InstData {
             block: self.block.index,
@@ -37,8 +35,7 @@ impl<'a> Builder<'a> {
         self.branch_inner(block, args);
         self.terminate()
     }
-    pub fn do_if(mut self, condition: Instruction) -> IfBuilder<'a, False> {
-        self.register_dd(&[condition]);
+    pub fn do_if(self, condition: Instruction) -> IfBuilder<'a, False> {
         let inst = InstData {
             block: self.block.index,
             kind: InstKind::Terminator(TermData::DoIf(condition)),
