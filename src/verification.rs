@@ -1,32 +1,73 @@
-use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, Unit};
+use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, Unit, LiveData, DataPart};
+use crate::util::KeyVec;
 
 impl Unit {
     pub(crate) fn annotate_liveness(&mut self) {
-
+        let mut visited = Vec::new();
+        // do a depth-first-traversal of the cfg
+        // and determine liveness of each used instruction
+        self.set_liveness(Block(0), &mut visited);
     }
-    fn get_dependencies(&self, block: Block, visited: &mut Vec<Block>) -> Set<Block> {
+    fn set_liveness(&mut self, block: Block, visited: &mut Vec<Block>) -> Set<Instruction> {
         let scope = visited.len();
         visited.push(block);
-        let blockdata = &self.blocks[block];
-        //let mut set = Set::from_iter(blockdata.dd.iter().cloned());
         let mut set = Set::new();
+        let blockdata = &self.blocks[block];
         let first = blockdata.inst_range[0].0;
         let last = blockdata.inst_range[1].0;
+        for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
+            // determine values that pass the block boundary
+            // and mark them as Alive
+            let mut s = self.set_liveness(c, visited);
+            for i in s.iter() {
+                self.liveness.insert((block, *i), LiveData::Alive);
+            }
+            set.append(&mut s);
+        }
+        // determine partial liveness
+        for i in (first..last).rev().map(|i| Instruction(i)) {
+            set.remove(&i);
+            let used = self.instructions[i].kind.get_insts(&self.data);
+            for u in used.into_iter() {
+                if !self.liveness.contains_key(&(block, *u)) {
+                    self.liveness.insert((block, *u), LiveData::Partial(i));
+                    set.insert(*u);
+                }
+            }
+        }
+        visited.truncate(scope);
+        set
+    }
+    fn get_dependencies(&mut self, block: Block, visited: &mut Vec<Block>) -> Set<Block> {
+        let scope = visited.len();
+        visited.push(block);
+        let mut set = Set::new();
+        let blockdata = &self.blocks[block];
+        let first = blockdata.inst_range[0].0;
+        let last = blockdata.inst_range[1].0;
+        // determine direct dependency
+        // (use of instructions directly by this block,
+        //  including self)
         for i in (first..last).map(|i| Instruction(i)) {
             let inst = &self.instructions[i];
             set.insert(inst.block);
         }
+        // determine indirect dependency
         for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
             if !visited.contains(&c) {
                 set.append(&mut self.get_dependencies(c, visited));
             }
         }
+        // satisfy dependency on self
         set.remove(&block);
         visited.truncate(scope);
         set
     }
     pub(crate) fn check_dependencies(&mut self) {
         let mut visited = Vec::new();
+        // if any dependency bubbled up to block 0, then
+        // there must be a codepath that does not fulfill
+        // the dependency, aka a reqd. block is not a dominator
         let set = self.get_dependencies(Block(0), &mut visited);
         if !set.is_empty() {
             panic!("aaaa");
@@ -68,7 +109,7 @@ impl Unit {
                 if unused[inst as usize] {
                     continue;
                 }
-                let refs = instruction.kind.get_insts(unit);
+                let refs = instruction.kind.get_insts(&unit.data);
                 for i in refs {
                     unused[i.0 as usize] = false;
                 }
@@ -122,11 +163,11 @@ impl InstKind {
             _ => None,
         }
     }
-    fn get_insts<'a>(&'a self, unit: &'a Unit) -> &'a [Instruction] {
+    fn get_insts<'a>(&'a self, data: &'a KeyVec<DataPart, Instruction>) -> &'a [Instruction] {
         match self {
             Self::Add(a) | Self::Sub(a) | Self::Less(a) | Self::More(a) => a,
             Self::Recur(a) | Self::Terminator(crate::data::TermData::Branch(_, a)) => {
-                &unit.data[*a]
+                &data[*a]
             }
             Self::Terminator(crate::data::TermData::DoIf(i)) => std::slice::from_ref(i),
             _ => &[],

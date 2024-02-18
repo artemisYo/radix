@@ -35,6 +35,7 @@ mod tests {
         });
         let unit = unit.finalize(Type::Int32);
         eprintln!("{}", unit.human_format());
+        eprintln!("--- liveness ---\n{:#?}", unit.liveness);
     }
     #[test]
     fn construct() {

@@ -2,6 +2,7 @@ use crate::util::{Key, KeyVec};
 use std::marker::PhantomData;
 
 pub type Set<V> = std::collections::BTreeSet<V>;
+pub type Map<K, V> = std::collections::BTreeMap<K, V>;
 
 // Contains structs that store the actual data
 
@@ -33,7 +34,7 @@ pub struct Unit {
     pub(crate) signatures: KeyVec<SignaturePart, Type>,
     pub(crate) blocks: KeyVec<Block, BlockData>,
     pub(crate) instructions: KeyVec<Instruction, InstData>,
-    pub(crate) liveness: KeyVec<Liveness, (Instruction, LiveData)>,
+    pub liveness: Map<(Block, Instruction), LiveData>,
     pub(crate) retsig: Option<Type>,
 }
 
@@ -41,7 +42,6 @@ pub struct Unit {
 pub struct BlockData {
     pub(crate) signature: [SignaturePart; 2],
     pub(crate) inst_range: [Instruction; 2],
-    pub(crate) liveness: [Liveness; 2],
 }
 
 pub(crate) struct InstData {
@@ -91,9 +91,6 @@ pub struct BlockHandle<Init> {
     pub(crate) index: Block,
     pub(crate) _p: PhantomData<Init>,
 }
-// index into liveness
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
-pub struct Liveness(pub(crate) u32);
 
 // Rest
 //   These are some trait impls and other stuff
@@ -107,7 +104,7 @@ impl Unit {
             signatures: KeyVec::new(),
             blocks: KeyVec::new(),
             instructions: KeyVec::new(),
-            liveness: KeyVec::new(),
+            liveness: Map::new(),
             retsig: None,
         }
     }
@@ -143,18 +140,6 @@ impl Key for Block {
     where
         Self: Sized,
     {
-        Some(Self(index.try_into().ok()?))
-    }
-
-    fn into(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl Key for Liveness {
-    fn from(index: usize) -> Option<Self>
-    where
-        Self: Sized {
         Some(Self(index.try_into().ok()?))
     }
 
