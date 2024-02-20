@@ -2,76 +2,75 @@ use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, 
 use crate::util::KeyVec;
 
 impl Unit {
+    fn depth_first<F, A>(&mut self, mut callback: F) -> A
+    where F: FnMut(Vec<A>, &mut Self, Block) -> A
+    {
+        let mut vis = Vec::new();
+        self.depth_first_internal(&mut vis, Block(0), &mut callback)
+    }
+    fn depth_first_internal<F, A>(&mut self, vis: &mut Vec<Block>, block: Block, callback: &mut F) -> A
+    where F: FnMut(Vec<A>, &mut Self, Block) -> A
+    {
+        let scope = vis.len();
+        vis.push(block);
+        let blockdata = &self.blocks[block];
+        let mut acc = Vec::new();
+        for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
+			acc.push(self.depth_first_internal(vis, c, callback));
+        }
+        vis.truncate(scope);
+        callback(acc, self, block)
+    }
     pub(crate) fn annotate_liveness(&mut self) {
-        let mut visited = Vec::new();
         // do a depth-first-traversal of the cfg
         // and determine liveness of each used instruction
-        self.set_liveness(Block(0), &mut visited);
-    }
-    fn set_liveness(&mut self, block: Block, visited: &mut Vec<Block>) -> Set<Instruction> {
-        let scope = visited.len();
-        visited.push(block);
-        let mut set = Set::new();
-        let blockdata = &self.blocks[block];
-        let first = blockdata.inst_range[0].0;
-        let last = blockdata.inst_range[1].0;
-        for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
-            // determine values that pass the block boundary
-            // and mark them as Alive
-            let mut s = self.set_liveness(c, visited);
-            for i in s.iter() {
-                self.liveness.insert((block, *i), LiveData::Alive);
-            }
-            set.append(&mut s);
-        }
-        // determine partial liveness
-        for i in (first..last).rev().map(|i| Instruction(i)) {
-            set.remove(&i);
-            let used = self.instructions[i].kind.get_insts(&self.data);
-            for u in used.into_iter() {
-                if !self.liveness.contains_key(&(block, *u)) {
-                    self.liveness.insert((block, *u), LiveData::Partial(i));
-                    set.insert(*u);
-                }
-            }
-        }
-        visited.truncate(scope);
-        set
-    }
-    fn get_dependencies(&mut self, block: Block, visited: &mut Vec<Block>) -> Set<Block> {
-        let scope = visited.len();
-        visited.push(block);
-        let mut set = Set::new();
-        let blockdata = &self.blocks[block];
-        let first = blockdata.inst_range[0].0;
-        let last = blockdata.inst_range[1].0;
-        // determine direct dependency
-        // (use of instructions directly by this block,
-        //  including self)
-        for i in (first..last).map(|i| Instruction(i)) {
-            let inst = &self.instructions[i];
-            set.insert(inst.block);
-        }
-        // determine indirect dependency
-        for c in blockdata.get_next(self).into_iter().filter_map(|t| t) {
-            if !visited.contains(&c) {
-                set.append(&mut self.get_dependencies(c, visited));
-            }
-        }
-        // satisfy dependency on self
-        set.remove(&block);
-        visited.truncate(scope);
-        set
+		self.depth_first(|acc: Vec<Set<Instruction>>, unit, block| {
+    		let mut set = Set::new();
+    		for mut s in acc.into_iter() {
+				for i in s.iter() {
+					unit.liveness.insert((block, *i), LiveData::Alive);
+				}
+				set.append(&mut s);
+    		}
+    	    let blockdata = &unit.blocks[block];
+    	    let first = blockdata.inst_range[0].0;
+    	    let last = blockdata.inst_range[1].0;
+    	    for i in (first..last).rev().map(|i| Instruction(i)) {
+				set.remove(&i);
+				let used = unit.instructions[i].kind.get_insts(&unit.data);
+				for u in used.into_iter() {
+					if !unit.liveness.contains_key(&(block, *u)) {
+						unit.liveness.insert((block, *u), LiveData::Partial(i));
+						set.insert(*u);
+					}
+				}
+    	    }
+    	    set
+		});
     }
     pub(crate) fn check_dependencies(&mut self) {
-        let mut visited = Vec::new();
+		let set = self.depth_first(|acc, unit, block| {
+    		let mut set = Set::new();
+			let blockdata = &unit.blocks[block];
+			let first = blockdata.inst_range[0].0;
+			let last = blockdata.inst_range[1].0;
+        	// determine indirect dependency
+        	acc.into_iter().for_each(|mut s| set.append(&mut s));
+        	// determine direct dependency
+        	// (use of instructions directly by this block,
+        	//  including self)
+        	for i in (first..last).map(|i| Instruction(i)) {
+            	let inst = &unit.instructions[i];
+            	set.insert(inst.block);
+        	}
+        	// satisfy dependency on self
+        	set.remove(&block);
+        	set
+		});
         // if any dependency bubbled up to block 0, then
         // there must be a codepath that does not fulfill
         // the dependency, aka a reqd. block is not a dominator
-        let set = self.get_dependencies(Block(0), &mut visited);
-        if !set.is_empty() {
-            panic!("aaaa");
-        }
+		if !set.is_empty() { panic!("aaaa"); }
     }
     fn width_first_traversal<F>(&mut self, mut callback: F)
     where
