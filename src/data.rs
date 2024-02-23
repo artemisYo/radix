@@ -65,7 +65,7 @@ pub(crate) enum TermData {
     Branch(Block, [DataPart; 2]),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum LiveData {
     Alive,
     Partial(Instruction),

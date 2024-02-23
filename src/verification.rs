@@ -1,7 +1,30 @@
-use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, Unit, LiveData, DataPart};
+use crate::data::{Block, BlockData, InstData, InstKind, Instruction, Set, Type, Unit, LiveData, DataPart, Map};
 use crate::util::KeyVec;
 
 impl Unit {
+    fn assign_vregs(&mut self) -> KeyVec<Instruction, u32> {
+        let mut out = KeyVec::new();
+        // save fixup operations for later (as inserting them into
+        // the instruction pool would mess up all of the indeces)
+        let mut fixups = Map::<Instruction, (u32, Instruction)>::new();
+        let mut current_reg = 0;
+        for i in (0..self.instructions.len()).map(|i| Instruction(i as u32)) {
+            let instdata = &self.instructions[i];
+            if instdata.kind.is_reuse() { // if instdata.is_reuse()
+                let lhs = instdata.kind.get_insts(&self.data)[0];
+                if self.liveness.get(&(instdata.block, lhs)).unwrap() != &LiveData::Partial(i) {
+                    fixups.insert(i, (current_reg, lhs));
+                    out[i] = current_reg;
+                } else {
+                    out[i] = out[lhs];
+                }
+            } else {
+                out[i] = current_reg;
+            }
+            current_reg += 1;
+        }
+        out
+    }
     fn depth_first<F, A>(&mut self, mut callback: F) -> A
     where F: FnMut(Vec<A>, &mut Self, Block) -> A
     {
@@ -155,6 +178,9 @@ impl BlockData {
 }
 
 impl InstKind {
+    fn is_reuse(&self) -> bool {
+        todo!()
+    }
     fn get_block(&self) -> Option<Block> {
         match self {
             Self::Terminator(crate::data::TermData::Branch(Block::MAX, _)) => None,
